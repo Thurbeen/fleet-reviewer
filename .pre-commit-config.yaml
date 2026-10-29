@@ -1,0 +1,35 @@
+# Git hooks, run with prek (https://github.com/j178/prek) rather than the
+# Python `pre-commit`:
+#
+#     prek install
+#
+# `prek run --all-files` is the repository gate: the publish skill and CI run
+# the same checks. Commit messages are checked so local history stays
+# readable; the commit that lands on main is the squashed PR title, which CI
+# checks in pr-title.yml.
+default_stages: [pre-commit]
+default_install_hook_types:
+  - commit-msg
+  - pre-commit
+
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.3.2
+    hooks:
+      - id: rumdl-check
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck

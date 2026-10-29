@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 540" role="img" aria-labelledby="title desc">
+<title id="title">Review state machine</title>
+<desc id="desc">A Review starts Queued when its source lists an included change: it creates a Task for the head, not dispatched. Dispatch moves it to Reviewing. A result for the current head moves it to Reviewed; a result for an older head moves it back to Queued. A new push moves Reviewed back to Queued. A filtered change moves Queued to Excluded, and back when it is included again. Any open state goes to Settled when the change is merged or closed, and to Retiring when it leaves the source's scope, its source is gone or a person deletes it. Settled goes to Retiring after its retention. Retiring deletes every Task, then the Review. An Unknown answer causes no transition.</desc>
+<style>
+  svg { color-scheme:light dark }
+  @media (prefers-color-scheme: light) { svg &gt; rect{fill:#fff} svg &gt; g{fill:#182b3d} }
+  @media (prefers-color-scheme: dark) { svg &gt; rect{fill:#101820} svg &gt; g{fill:#e6edf3} [stroke="#7890a6"]{stroke:#71869a} [stroke="#405367"]{stroke:#a9bdd0} [fill="#405367"]{fill:#a9bdd0} [fill="#edf3f8"]{fill:#1d2a36} [fill="#f5f7fa"]{fill:#18232d} [fill="#fbf4e6"]{fill:#3b2d13} }
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#405367"/></marker></defs>
+<rect width="1120" height="540" rx="12" fill="#ffffff"/>
+<g font-family="system-ui,-apple-system,Segoe UI,sans-serif" fill="#182b3d">
+<text x="24" y="36" font-size="21" font-weight="700">One Review, from a listed change to a retired record</text>
+<text x="24" y="62" font-size="14">Blue states keep the change under review; amber states end it. An Unknown answer never moves a Review.</text>
+<g stroke="#7890a6" stroke-width="1.5" fill="#edf3f8">
+<rect x="60" y="84" width="740" height="360" rx="10" fill="none" stroke-dasharray="6 5"/>
+<rect x="88" y="150" width="180" height="78" rx="8"/>
+<rect x="338" y="150" width="180" height="78" rx="8"/>
+<rect x="588" y="150" width="180" height="78" rx="8"/>
+<rect x="88" y="320" width="180" height="78" rx="8"/>
+<rect x="338" y="320" width="430" height="78" rx="8" fill="#f5f7fa" stroke-dasharray="5 4"/>
+<rect x="860" y="150" width="220" height="78" rx="8" fill="#fbf4e6"/>
+<rect x="860" y="320" width="220" height="78" rx="8" fill="#fbf4e6"/>
+</g>
+<text x="80" y="108" font-size="13" font-weight="700">Change open and in scope</text>
+<g font-size="12" text-anchor="middle">
+<text x="178" y="177" font-size="15" font-weight="700">Queued</text>
+<text x="178" y="198">Task not dispatched</text>
+<text x="178" y="215">push: replace the Task</text>
+<text x="428" y="177" font-size="15" font-weight="700">Reviewing</text>
+<text x="428" y="198">Task dispatched, no result</text>
+<text x="428" y="215">push: tell the session</text>
+<text x="678" y="177" font-size="15" font-weight="700">Reviewed</text>
+<text x="678" y="198">result for this head</text>
+<text x="678" y="215">Task deleted after taskMs</text>
+<text x="178" y="347" font-size="15" font-weight="700">Excluded</text>
+<text x="178" y="368">queued Task deleted</text>
+<text x="178" y="385">a running Task finishes</text>
+<text x="553" y="347" font-size="14" font-weight="700">Any state: an Unknown answer</text>
+<text x="553" y="368">no transition, no Task created or deleted;</text>
+<text x="553" y="385">the next pass asks again</text>
+<text x="970" y="177" font-size="15" font-weight="700">Settled</text>
+<text x="970" y="198">merged or closed</text>
+<text x="970" y="215">a running Task finishes</text>
+<text x="970" y="347" font-size="15" font-weight="700">Retiring</text>
+<text x="970" y="368">delete every Task</text>
+<text x="970" y="385">then delete the Review</text>
+</g>
+<g stroke="#405367" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
+<path d="M41 189 H86"/>
+<path d="M268 180 H336"/>
+<path d="M518 180 H586"/>
+<path d="M338 204 H270"/>
+<path d="M678 150 C678 110 178 110 178 148"/>
+<path d="M158 228 V318"/>
+<path d="M198 320 V230"/>
+<path d="M800 189 H858"/>
+<path d="M800 359 H858"/>
+<path d="M970 228 V318"/>
+<path d="M970 398 V476"/>
+</g>
+<circle cx="34" cy="189" r="7" fill="#405367"/>
+<circle cx="970" cy="488" r="11" fill="none" stroke="#405367" stroke-width="1.6"/>
+<circle cx="970" cy="488" r="6" fill="#405367"/>
+<g font-size="11.5">
+<text x="64" y="181" text-anchor="middle">listed</text>
+<text x="302" y="172" text-anchor="middle">dispatch</text>
+<text x="552" y="172" text-anchor="middle">result</text>
+<text x="304" y="220" text-anchor="middle">older head</text>
+<text x="428" y="114" text-anchor="middle">new push</text>
+<text x="150" y="278" text-anchor="end">filtered</text>
+<text x="206" y="278">included</text>
+<text x="829" y="181" text-anchor="middle">closed</text>
+<text x="829" y="351" text-anchor="middle">retire</text>
+<text x="978" y="278">retention</text>
+<text x="984" y="442">Tasks gone</text>
+</g>
+</g>
+</svg>
