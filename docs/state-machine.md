@@ -45,7 +45,7 @@ Rules are checked in order. The first rule that matches decides the pass.
 | 4 | The project is no longer in the source's `spec.repositories`. | `Retiring` | Delete every Task, running ones included. A person narrowed the scope; this is the cancel. |
 | 5 | `Retiring`, and every Task probe answers `known: null`. | gone | `delete: true`. |
 | 6 | `Settled`, and `settledAt + retention.reviewMs` is past. | `Retiring` | Delete every Task. |
-| 7 | `change` answers `merged` or `closed`. | `Settled` | Delete the current Task if it is not dispatched. A dispatched one finishes; thurview syncs a pass that was in progress once, then stops. |
+| 7 | `change` answers `merged` or `closed`, or the phase is `Settled`. | `Settled` | Delete the current Task if it is not dispatched. A dispatched one finishes; thurview syncs a pass that was in progress once, then stops. Its result is recorded as in rule 12. |
 | 8 | The change is missing from the listing, and `change` answers `open` or Unknown. | unchanged | Nothing. The next pass asks again, after the source's next listing. |
 | 9 | The source is suspended. | unchanged | Nothing is created or dispatched. A running Task continues. |
 | 10 | The listing excludes the change. | `Excluded` | Delete the current Task if it is not dispatched. A dispatched one finishes, and its result is recorded. |

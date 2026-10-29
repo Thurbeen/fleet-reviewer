@@ -169,7 +169,8 @@ sync your pass for the newest head, and report that head as the `head` output.
 
 The `Review` records the head in `task.told`. When the Task reports a `head` equal to the
 current head, that head is reviewed and no new Task is created. When it reports an older
-head, rule 12 creates a Task for the current head.
+head, the `Review` returns to `Queued` and creates a Task for the current head
+(rules 12 and 15).
 
 A rewritten branch is a new head like any other. thurview reviews the whole change when
 the old head is not an ancestor of the new one.
