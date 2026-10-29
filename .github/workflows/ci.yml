@@ -1,0 +1,71 @@
+---
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# The repository holds a design and no implementation yet, so CI lints what
+# exists and nothing that an empty implementation would fail. The type-check
+# and test jobs arrive with the code. Commit messages on the branch are not
+# checked here: squash merge discards them, and the PR title that becomes the
+# commit is checked by pr-title.yml. A branch ruleset requires "All Checks"
+# and "PR Title"; add every new job to `all-checks.needs`.
+jobs:
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: rvben/rumdl@1e0f1d13c87418c31e0d59dacddd98f27a02efcc # v0.3.2
+        with:
+          report-type: annotations
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck
+
+  svg:
+    name: SVG well-formed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Diagrams are hand-written SVG; a broken one renders as a broken image
+      # on GitHub without any other signal.
+      - name: Parse every SVG
+        run: |
+          git ls-files -z '*.svg' | xargs -0 --no-run-if-empty -n1 \
+            python3 -c 'import sys, xml.dom.minidom; xml.dom.minidom.parse(sys.argv[1])'
+
+  all-checks:
+    name: All Checks
+    if: always()
+    needs:
+      - markdown-lint
+      - shellcheck
+      - svg
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more checks failed or were cancelled"
+            exit 1
+          fi
+          echo "All checks passed"
