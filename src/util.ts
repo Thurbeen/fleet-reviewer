@@ -25,6 +25,16 @@ export function reviewName(host: string, project: string, number: number): strin
   return `rv-${repo || 'repo'}-${number}-${hash.slice(0, 6)}`;
 }
 
+/** The ref the forge keeps for a change's head, fetchable from any clone. */
+export function headRef(kind: string, number: number): string {
+  return kind === 'gitlab' ? `refs/merge-requests/${number}/head` : `refs/pull/${number}/head`;
+}
+
+/** The shell steps that put a worktree on a change's exact head. */
+export function checkoutHead(kind: string, number: number, head: string): string {
+  return `git fetch origin ${headRef(kind, number)} && git checkout --detach ${head}`;
+}
+
 export function changeKey(project: string, number: number): string {
   return `${project}!${number}`;
 }

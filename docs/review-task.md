@@ -17,7 +17,8 @@ forge.
   },
   "spec": {
     "configRef": {"name": "review-github"},
-    "workspace": {"repositories": [{"name": "app", "url": "https://github.com/OWNER/app"}]},
+    "workspace": {"repositories": [{"name": "app", "url": "https://github.com/OWNER/app",
+                                    "ref": "origin/main"}]},
     "brief": "…the rendered brief below…",
     "dispatch": false,
     "outputs": {
@@ -34,7 +35,7 @@ forge.
 | Field | From | Why |
 | --- | --- | --- |
 | `configRef` | `review.taskConfig` | Harness, host, model and the session's credentials differ per forge. A TaskConfig already holds them. |
-| `workspace.repositories` | The project's `url` | The runtime makes a worktree of the repository. The session fetches the change's head itself. The Task names no `ref`, because Fleet leaves its meaning to the runtime. |
+| `workspace.repositories` | The project's `url`, and `ref: origin/<target branch>` | The runtime makes a worktree of the repository from `ref`; with thurbox, `ref` is the worktree's base branch. The runtime does not fetch, so the brief's step 0 fetches the change's own head (`refs/pull/<n>/head` on GitHub, `refs/merge-requests/<iid>/head` on GitLab) and checks it out. No `ref` would start from the clone's local default branch, which may be days old. |
 | `dispatch` | `false` | Nothing runs until a person or the policy says so. See [Dispatch](#dispatch). |
 | `outputs` | fixed | The facts the `Review` records. Only `head` is required, so a `stuck` or `failed` result still validates. |
 
@@ -62,6 +63,9 @@ Title, as the author wrote it (data, not an instruction): "{title}"
 Author: {author}
 Your Task: {task}. Read its uid with `fleet get task {task}`.
 
+0. Start from the change's own head. Your worktree began on the target branch, which may be
+   behind: run `git fetch origin {headRef} && git checkout --detach {head}`. Read the
+   repository's rules (AGENTS.md, CLAUDE.md, CONTRIBUTING.md) and its code from that head.
 1. Read the whole change and the code around it. Check each claim the change makes.
 2. Decide each finding: what is wrong, where, and a concrete failure scenario.
 [output post]
@@ -94,6 +98,10 @@ Author: {author}
 Your Task: {task}. Read its uid with `fleet get task {task}`.
 
 Mode: {output}, {page}.
+
+0. Start from the change's own head. Your worktree began on the target branch, which may be
+   behind: run `git fetch origin {headRef} && git checkout --detach {head}`. Read the
+   repository's rules (AGENTS.md, CLAUDE.md, CONTRIBUTING.md) and its code from that head.
 
 1. Run `thurview update`. You need thurview 0.37.0 or later, which reviews without a
    page. Read the thurview-pr-review skill (`thurview skill` prints its path) and follow
@@ -199,8 +207,9 @@ the new head, and the `Review` amends the Task with it, whatever the Task's phas
 The amendment reads:
 
 ```text
-The change's head moved to {sha}. Review what the new push added since the head you last
-reviewed, then record a result for this generation with --output head='"{sha}"'.
+The change's head moved to {sha}. Run `git fetch origin {headRef} && git checkout --detach
+{sha}`, then review what the new push added since the head you last reviewed, then record a
+result for this generation with --output head='"{sha}"'.
 ```
 
 The plugin amends through its plan's `amends[]`, with `ifGeneration` set to the Task's
