@@ -2,7 +2,8 @@
 
 A [Fleet](https://github.com/Thurbeen/fleet) plugin that finds the open pull and merge
 requests of chosen repositories, or only those that request one user's review, and starts
-one review Task per change and per head commit. Each review Task posts one summary and one
+one review Task per change, kept until the change merges or closes. A new push amends it.
+Each review Task posts one summary and one
 thread per finding, records a confidence from 1 to 5, and can approve the head it reviewed
 above a threshold. It never merges. A generic brief is the default;
 [thurview](https://github.com/Thurbeen/thurview)'s `pr-review` flow is an optional template.
@@ -16,10 +17,9 @@ Node.js already installed: no build, no package, no new binary.
 A person applies a `ReviewSource`: one forge host, an explicit list of repositories,
 filters, the TaskConfig the reviews run with, post or report-only, an optional approve
 threshold, and who dispatches. The plugin lists each repository's open changes, creates one
-`Review` per included change, and one Task per head. The policy dispatches each Task, or a
-person does. The plugin follows the
-Task to its result, reviews a new push again, and retires everything when the change
-closes.
+`Review` per included change, and one Task per change. The policy dispatches each Task, or
+a person does. The plugin follows the Task to its result, amends it on each push, and
+deletes it when the change merges or closes.
 
 | Read | For |
 | --- | --- |

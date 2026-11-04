@@ -12,7 +12,7 @@ forge.
   "apiVersion": "fleet/v1alpha1",
   "kind": "Task",
   "metadata": {
-    "name": "rv-app-88-1b7d02-9f3c2a1e0b7d",
+    "name": "rv-app-88-1b7d02",
     "labels": {"fleet-reviewer/source": "app", "fleet-reviewer/review": "rv-app-88-1b7d02"}
   },
   "spec": {
@@ -169,58 +169,58 @@ A suspended source dispatches nothing. A person may still dispatch by hand.
 ## Following the Task
 
 Each pass reads the Task with an `object` probe. The `Review` reads only what Fleet
-publishes on a Task: `spec.dispatch`, `status.phase`, `status.conditions` and
-`status.result`.
+publishes on a Task: `metadata.generation`, `spec.dispatch`, `spec.amendments`,
+`status.phase`, `status.conditions` and `status.result`.
 
 | Task observation | `Review` records |
 | --- | --- |
 | Pending with `dispatch: false` | `Dispatched=False`. |
 | Pending, Spawning, Spawned or Briefed with `dispatch: true` | `Dispatched=True`; `task.dispatched` with `by: person` when the plugin did not patch it. |
-| Concluded with a result | An entry in `reviews`: head, outcome, outputs, time. The Task joins `retiring` after `retention.taskMs`. |
+| A result for a generation not yet recorded | An entry in `reviews`: head, generation, outcome, outputs, time. The Task stays. |
 | Stalled, or `NeedsAttention` | `NeedsAttention`, naming the Task and its reason. |
 | `known: null` | The Task is gone. If the plugin did not delete it, its head joins `cancelled`. |
 | Unknown | Nothing changes. |
 
-A result whose `head` output is neither the briefed head nor a head the Task was told
-about is recorded with `NeedsAttention/UnexpectedHead`, and the current head is not
-marked as reviewed.
+A result whose `head` output is neither the briefed head nor a head named in an amendment
+is recorded with outcome `unexpected-head` and `NeedsAttention/UnexpectedHead`. The
+current head is then not marked as reviewed.
 
 ## A new push
 
-The source's next listing carries the new head. The `Review` then acts by the state of the
-Task for the old head:
+One review Task follows the change for its whole life. The source's next listing carries
+the new head, and the `Review` amends the Task with it, whatever the Task's phase:
 
-| Old Task | Action | Why |
-| --- | --- | --- |
-| None, or concluded | Create a Task for the new head. | One review per head. thurview reviews only the increment since its last summary. |
-| Not dispatched | Delete it; create a Task for the new head. | Nobody reviewed the old head, and nobody will need it. |
-| Dispatched, no result | Append one inbox entry to it, key `head/<sha>`. | The session is already in the change. thurview refuses to sync a pass for a head that is no longer the change's head, so the session must review the increment anyway. |
+| Task | What the amendment does |
+| --- | --- |
+| Not dispatched | Joins the brief. The session receives the brief and the amendment together. |
+| Dispatched, no result | Reaches the same session's inbox. Its result must name the amendment's generation. |
+| Concluded | Reopens the Task, `Concluded=False/Amended`. The session reviews the increment and records a new result for the new generation. |
 
-The inbox entry reads:
+The amendment reads:
 
 ```text
-The change's head moved to {sha} while you worked. Review what the new push added,
-sync your pass for the newest head, and report that head as the `head` output.
+The change's head moved to {sha}. Review what the new push added since the head you last
+reviewed, then record a result for this generation with --output head='"{sha}"'.
 ```
 
-The `Review` records the head in `task.told`. When the Task reports a `head` equal to the
-current head, that head is reviewed and no new Task is created. When it reports an older
-head, the `Review` returns to `Queued` and creates a Task for the current head
-(rules 12 and 15).
+The plugin amends through its plan's `amends[]`, with `ifGeneration` set to the Task's
+`metadata.generation` from the probe. Fleet refuses the amendment when the generation
+moved, and records the refusal in `host.verbs`. The plugin sends no amendment for a head
+that the Task's brief or one of its amendments already names. A repeated or recovered pass
+therefore amends nothing twice.
 
-A rewritten branch is a new head like any other. thurview reviews the whole change when
-the old head is not an ancestor of the new one.
+A rewritten branch is a new head like any other. The session reviews the whole change
+when the old head is not an ancestor of the new one.
 
 ## A closed change
 
-| Task when the change closes | Outcome |
-| --- | --- |
-| Not dispatched | Deleted. |
-| Dispatched, no result | Left to finish. thurview syncs a pass that was in progress once, marked as reviewed after the merge, then stops. |
-| Concluded | Kept until `retention.taskMs`, like any concluded Task. |
-
+The review ends with the change. When the forge says the change is merged or closed, the
+`Review` deletes its Task, running or not, and the Task's controller releases the session.
 The `Review` then waits `retention.reviewMs` in `Settled`, so `fleet get review` still
 shows what was reviewed. Then it retires.
+
+A change that a filter excludes, an unrequested reviewer included, also deletes its Task.
+When the change is included again, the `Review` creates a new Task with the same name.
 
 ## Report-only
 

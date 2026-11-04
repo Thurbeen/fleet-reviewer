@@ -29,11 +29,12 @@ flowchart LR
   P[Person] -->|fleet apply| S[ReviewSource<br/>forge, repositories,<br/>filters, policy]
   S -->|observe: list open changes| F[(Forge API)]
   S -->|creates, one per included change| R[Review]
-  R -->|creates, one per head| T[Task<br/>dispatch: false]
+  R -->|creates one Task per change| T[Task<br/>dispatch: false]
   R -->|patches dispatch, by: policy, the default| T
+  R -->|amends on each push| T
   P -.->|dispatch, when by: person| T
   T -->|review, post, approve at the threshold| F
-  T -->|fleet result| R
+  T -->|fleet result, one per generation| R
 ```
 
 1. A person applies a `ReviewSource`. It names one forge host, the token variable for that
@@ -45,18 +46,19 @@ flowchart LR
    verdict in its status. With `requestedReviewer`, a change is included only while it
    requests that user's review. It creates one `Review` for each included change that has no
    `Review` yet.
-3. Each `Review` reads its source and its current Task from the store. When the change's
-   head has no review yet, the `Review` creates one Task for that head, with
-   `dispatch: false`.
+3. Each `Review` reads its source and its Task from the store. The `Review` creates one
+   Task for the change, with `dispatch: false`. The Task stays until the change merges or
+   closes.
 4. The policy dispatches the Task when fewer than `maxActive` review Tasks of the source
    run. This is the default. Under `dispatch.by: person`, a person dispatches it.
 5. The Task's agent session reviews the change by its brief. It posts one summary and one
    thread per finding, or it only reports, as the source says. With `review.approveAt`, it
    approves the head it reviewed when its confidence reaches that value. It records a
    result with the head it reviewed and the confidence.
-6. The `Review` reads the result and records it. A new push starts again at step 3 for the
-   new head. A merged or closed change settles the `Review`; after a retention the `Review`
-   deletes its Tasks and then itself.
+6. The `Review` reads the result and records it. A new push amends the same Task with the
+   new head; the Task reviews the increment and records a new result for the amendment's
+   generation. A merged or closed change deletes the Task and settles the `Review`; after a
+   retention the `Review` deletes itself.
 
 ## Why a plugin
 
@@ -77,7 +79,7 @@ These rules generalise what manual review runs showed.
 | Removing a repository from a source cancels its reviews, running ones included. | [State machine](state-machine.md#transitions) |
 | Bots, deleted users, drafts, stale changes and the reviewer's own changes are excluded by default. | [Filters](kinds.md#filters) |
 | Identity and harness are per forge. Each source names its token variable and its TaskConfig. | [Configuration](configuration.md#identities) |
-| One review per head commit. A new push gets a new review; no head is reviewed twice. | [New push](review-task.md#a-new-push) |
+| One review Task per change, for the change's life. A new push amends it; no head is sent twice. | [New push](review-task.md#a-new-push) |
 | Posting or report-only is a setting, and posting is the default. | [`review.output`](kinds.md#reviewsource) |
 | A source can follow one user's requested reviews only. | [`filters.requestedReviewer`](kinds.md#filters) |
 | Review Tasks are dispatched by the policy by default. | [`dispatch.by`](kinds.md#reviewsource) |
@@ -90,7 +92,7 @@ These rules generalise what manual review runs showed.
 ## Scope
 
 In scope: GitHub and GitLab, on their public hosts and self-hosted; discovery, filters,
-one Task per head, dispatch by policy or by a person, following the Task, retiring what
+one Task per change, dispatch by policy or by a person, following the Task, retiring what
 the plugin made.
 
 Out of scope, deliberately:
@@ -115,4 +117,5 @@ The operator's request changed the first draft of this design in these places:
 | Brief | thurview's `pr-review` flow only. | `review.template`: `generic`, the default, or `thurview`. | The plugin must not depend on one review tool. |
 | Stop label | `excludeLabels` defaults to `thurview:stop`. | `review:stop`. | The same reason. |
 | Distribution | A bundled `dist/plugin.js`. | `src/plugin.ts`, which Node.js 22.18 or later runs as is. No build and no runtime dependency. | The operator installs no new binary and no package. |
+| One Task per change | One Task per head commit; a new push gets a new Task. | One Task per change, named after its `Review`, kept until the change merges or closes. A push amends it through the plugin `amends[]` verb (Fleet #381), fenced on the Task's generation. `retention.taskMs` is gone. | Review feedback on this PR. |
 | Test forge | None. | `forge.kind: fake`, which reads Fleet's fake-forge files. Only the tests use it. | The end-to-end tests run against Fleet's fake forge and runtime. |

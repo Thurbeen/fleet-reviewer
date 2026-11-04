@@ -37,9 +37,8 @@ still lack.
 | Round | Probe id | Probe | When |
 | --- | --- | --- | --- |
 | 1 | `source` | `object ReviewSource <spec.source>` | Always. |
-| 1 | `task` | `object Task <status.task.name>` | `status.task` is set. |
-| 1 | `retiring/<name>` | `object Task <name>` | Per Task in `status.retiring`. |
-| 2 | `queue` | `list Task {fleet-reviewer/source: <spec.source>}` | The current Task waits for dispatch under `policy`. |
+| 1 | `task` | `object Task <the Review's name>` | Always. |
+| 2 | `queue` | `list Task {fleet-reviewer/source: <spec.source>}` | The Task waits for dispatch under `policy`. |
 | 2 | `change` | `plugin {op: "readChange", …}` | The change is missing from the source's last complete listing, and the host is not throttled. |
 
 Store probes cost no forge call and no lease renewal. A `list` answers at most 200
@@ -91,8 +90,8 @@ unavailable plugin's objects are not reconciled.
 
 ## `reconcile`
 
-A plan uses `status`, `notBefore`, `creates`, `patches`, `appends`, `deletes`, `delete`
-and `removeFinalizer`. It never uses `declares` or `effects`.
+A plan uses `status`, `notBefore`, `creates`, `patches`, `amends`, `deletes`, `delete`
+and `removeFinalizer`. It never uses `appends`, `declares` or `effects`.
 
 A `ReviewSource` plan, after a listing that found one new included change:
 
@@ -111,18 +110,18 @@ A `ReviewSource` plan, after a listing that found one new included change:
   ]}}
 ```
 
-A `Review` plan, for a new head while the Task for the old head is still queued:
+A `Review` plan, for a new head after the Task reviewed the old one:
 
 ```json
 {"id": "r2", "ok": true, "plan": {
-  "status": {"phase": "Queued", "head": {"sha": "9f3c…", "seenAt": 1730000300000},
-             "task": {"name": "rv-app-88-1b7d02-9f3c2a1e0b7d", "head": "9f3c…", "told": []},
-             "retiring": [{"name": "rv-app-88-1b7d02-4a1d00c3e9f2", "uid": "…"}],
+  "status": {"phase": "Reviewing", "head": {"sha": "9f3c…", "seenAt": 1730000300000},
+             "task": {"name": "rv-app-88-1b7d02", "uid": "…", "head": "4a1d…"},
+             "reviews": [{"head": "4a1d…", "generation": 1, "outcome": "shipped", "…": "…"}],
              "conditions": ["…"]},
-  "notBefore": 1730000605000,
-  "deletes": [{"kind": "Task", "name": "rv-app-88-1b7d02-4a1d00c3e9f2", "uid": "…"}],
-  "creates": [{"apiVersion": "fleet/v1alpha1", "kind": "Task", "metadata": {"…": "…"},
-               "spec": {"…": "see the review Task"}}]}}
+  "notBefore": 1730000360000,
+  "amends": [{"task": "rv-app-88-1b7d02", "uid": "…", "ifGeneration": 1,
+              "reason": "the change's head moved",
+              "text": "The change's head moved to 9f3c…. Review what the new push added …"}]}}
 ```
 
 The [review Task](review-task.md#the-task) page shows the Task the plan creates, and the
@@ -134,7 +133,7 @@ The [review Task](review-task.md#the-task) page shows the Task the plan creates,
 | --- | --- | --- |
 | `creates` | A `Review` (source), a Task (review) | Own kind or Task; no status, `uid`, finalizer or `fleet.dev/plugin` label; at most 20. |
 | `patches` | `{"dispatch": true}` on a review Task | Task, `dispatch` only, `uid` matches, the Task carries this plugin's label under `tasks = "own"`. |
-| `appends` | The "head moved" message to a running review Task | The Task is this plugin's; key `head/<sha>`, unique for the Task. |
+| `amends` | The "head moved" amendment to the review Task | The Task is this plugin's; `uid` matches; `ifGeneration` is the Task's generation from the probe. At most 8. |
 | `deletes` | A review Task | By name and `uid`; the Task is this plugin's. |
 | `delete` | The `Review` itself, last | Not deleting already. |
 | `removeFinalizer` | A deleting `Review`, once its Tasks are gone | The object is deleting and holds this plugin's finalizer. |

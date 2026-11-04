@@ -4,7 +4,26 @@ Fleet defines how an object of a plugin kind moves through one pass: probes, rec
 the gate, the status write, the verbs. This page defines what the plugin decides in that
 pass. The [interface](interface.md) defines the probes and the plans.
 
-![A Review starts Queued when its source lists an included change and creates a Task for the head, not dispatched. Dispatch moves it to Reviewing. A result for the current head moves it to Reviewed; a result for an older head moves it back to Queued. A new push moves Reviewed back to Queued. A filtered change moves Queued to Excluded, and back when it is included again. Any open state goes to Settled when the change is merged or closed, and to Retiring when it leaves scope, its source is gone or a person deletes it. Settled goes to Retiring after its retention. Retiring deletes every Task, then the Review. An Unknown answer causes no transition.](state-machine.svg)
+```mermaid
+stateDiagram-v2
+  [*] --> Queued: included change, one Task created
+  Queued --> Reviewing: dispatched
+  Reviewing --> Reviewed: result for the current head
+  Reviewed --> Reviewing: push, the Task is amended
+  Reviewing --> Reviewing: push, the Task is amended
+  Queued --> Excluded: a filter excludes it, Task deleted
+  Reviewing --> Excluded: a filter excludes it, Task deleted
+  Reviewed --> Excluded: a filter excludes it, Task deleted
+  Excluded --> Queued: included again, a new Task
+  Queued --> Settled: merged or closed, Task deleted
+  Reviewing --> Settled: merged or closed, Task deleted
+  Reviewed --> Settled: merged or closed, Task deleted
+  Settled --> Retiring: after retention.reviewMs
+  Retiring --> [*]: the Task is gone
+```
+
+A `Review` has one review Task, named after the `Review`, for the life of the change. An
+Unknown answer causes no transition.
 
 ## Inputs of a Review pass
 
@@ -13,9 +32,8 @@ A `Review` decides from four observations. Each is Known or Unknown.
 | Observation | Probe | Asked |
 | --- | --- | --- |
 | `source` | Store: the `ReviewSource` named in `spec.source` | Every pass. |
-| `task` | Store: the Task named in `status.task` | When `status.task` is set. |
-| `retiring.<name>` | Store: each Task in `status.retiring` | When the list is not empty. |
-| `queue` | Store: Tasks labelled `fleet-reviewer/source: <source>` | When a Task waits for dispatch under `policy`. |
+| `task` | Store: the Task named after the `Review` | Every pass. |
+| `queue` | Store: Tasks labelled `fleet-reviewer/source: <source>` | When the Task waits for dispatch under `policy`. |
 | `change` | Plugin: `readChange`, one forge call | When the change is missing from the source's last complete listing. See [Closed changes](#closed-changes). |
 
 The source's status carries the change as last listed: head, draft state, labels and the
@@ -26,41 +44,43 @@ one that is no longer listed.
 
 | Phase | Meaning |
 | --- | --- |
-| `Queued` | A Task exists for the current head and is not dispatched. |
-| `Reviewing` | The current Task is dispatched and has no result. |
+| `Queued` | The Task exists and is not dispatched. |
+| `Reviewing` | The Task is dispatched, and the current head has no result yet. |
 | `Reviewed` | The current head has a recorded result. |
 | `Excluded` | The source lists the change, and a filter excludes it. |
 | `Settled` | The forge says the change is merged or closed. |
-| `Retiring` | The `Review` deletes its Tasks, then itself. |
+| `Retiring` | The `Review` deletes its Task, then itself. |
 
 ## Transitions
 
-Rules are checked in order. The first rule that matches decides the pass.
+Every pass first records each new result of the Task in `reviews`, one per generation.
+Then the rules are checked in order. The first rule that matches decides the pass.
 
 | # | Condition | Next phase | Plan |
 | --- | --- | --- | --- |
-| 1 | The `Review` is deleting. | `Retiring` | Delete every Task it holds. Remove the finalizer once each Task probe answers `known: null`. |
-| 2 | `source` is Unknown, or `task` is Unknown. | unchanged | Nothing but conditions. `notBefore = now + pollMs`. |
-| 3 | `source` is `known: null`, or the source is deleting. | `Retiring` | Delete every Task, running ones included. |
-| 4 | The project is no longer in the source's `spec.repositories`. | `Retiring` | Delete every Task, running ones included. A person narrowed the scope; this is the cancel. |
-| 5 | `Retiring`, and every Task probe answers `known: null`. | gone | `delete: true`. |
-| 6 | `Settled`, and `settledAt + retention.reviewMs` is past. | `Retiring` | Delete every Task. |
-| 7 | `change` answers `merged` or `closed`, or the phase is `Settled`. | `Settled` | Delete the current Task if it is not dispatched. A dispatched one finishes; thurview syncs a pass that was in progress once, then stops. Its result is recorded as in rule 12. |
+| 1 | The `Review` is deleting. | `Retiring` | Delete the Task. Remove the finalizer once the `task` probe answers `known: null`. |
+| 2 | `source` is Unknown, or `task` is Unknown. | unchanged | Nothing. `notBefore = now + 300000`. |
+| 3 | `source` is `known: null`, or the source is deleting. | `Retiring` | Delete the Task, running or not. |
+| 4 | The project is no longer in the source's `spec.repositories`. | `Retiring` | Delete the Task, running or not. A person narrowed the scope; this is the cancel. |
+| 5 | `Retiring`, and the `task` probe answers `known: null`. | gone | `delete: true`. |
+| 6 | `Settled`, and `settledAt + retention.reviewMs` is past. | `Retiring` | Nothing more to delete. |
+| 7 | `change` answers `merged` or `closed`, or the phase is `Settled`. | `Settled` | Delete the Task, running or not. The review ends with the change. |
 | 8 | The change is missing from the listing, and `change` answers `open` or Unknown. | unchanged | Nothing. The next pass asks again, after the source's next listing. |
-| 9 | The source is suspended. | unchanged | Nothing is created or dispatched. A running Task continues. |
-| 10 | The listing excludes the change. | `Excluded` | Delete the current Task if it is not dispatched. A dispatched one finishes, and its result is recorded. |
-| 11 | `task` is `known: null`, and its result was not recorded. | `Reviewed` if another head has a result, else `Queued` | Add the Task's head to `cancelled`. A person deleted it. No new Task for that head. |
-| 12 | `task` concluded with a result. | `Reviewed` or `Queued` | Record the result in `reviews`. Add the Task to `retiring` after `retention.taskMs`. `Reviewed` when the result's `head` output is the current head; else `Queued`. |
-| 13 | `task` is Stalled, or raises `NeedsAttention`. | unchanged | Raise `NeedsAttention` naming the Task's reason. A person decides. |
-| 14 | The current head has a result or is `cancelled`. | `Reviewed` | Nothing. |
-| 15 | No Task, or the Task is for an older head and not dispatched. | `Queued` | Delete the old Task. Create a Task for the current head, `dispatch: false`. |
-| 16 | The Task is for an older head and is dispatched. | `Reviewing` | Append one inbox entry, "the head moved to `<sha>`", once per head. See [A new push](review-task.md#a-new-push). |
-| 17 | The Task is for the current head, not dispatched, `dispatch.by: policy`, and the Task is first in the [queue](review-task.md#dispatch). | `Reviewing` | Patch the Task's `dispatch` to `true`. |
-| 18 | The Task is for the current head and not dispatched. | `Queued` | Nothing. Set `Dispatched=False` with the reason: `AwaitingPerson` or `AtCapacity`. |
-| 19 | The Task is dispatched and has no result. | `Reviewing` | Nothing. |
+| 9 | The source is suspended. | unchanged | Nothing is created, amended or dispatched. A running Task continues. |
+| 10 | The listing excludes the change. | `Excluded` | Delete the Task, running or not. An unrequested reviewer stops the review. |
+| 11 | The `Review` recorded a Task `uid`, and `task` is `known: null`. | `Reviewed` | Add the Task's head to `cancelled`. A person deleted it. A later push creates a new Task. |
+| 12 | The Task is Stalled, or raises `NeedsAttention`. | unchanged | Raise `NeedsAttention` naming the Task's reason. A person decides. |
+| 13 | No Task, and the current head has no result and is not `cancelled`. | `Queued` | Create the Task for the current head, `dispatch: false`. |
+| 14 | The Task was never asked about the current head. | unchanged until rule 15 to 18 | Amend the Task with the new head, `ifGeneration` set to the Task's generation. See [A new push](review-task.md#a-new-push). |
+| 15 | The Task is not dispatched, `dispatch.by: policy`, and the Task is first in the [queue](review-task.md#dispatch). | `Reviewing` | Patch the Task's `dispatch` to `true`. |
+| 16 | The Task is not dispatched. | `Queued` | Nothing more. Set `Dispatched=False` with the reason: `AwaitingPerson` or `AtCapacity`. |
+| 17 | The current head has a result, and no amendment was planned. | `Reviewed` | Nothing. |
+| 18 | Otherwise. | `Reviewing` | Nothing. |
 
-A person may dispatch a queued Task at any time, whatever the policy. Rule 19 then
-applies on the next pass. The plugin never sets `dispatch` back to `false`.
+A head the Task "was asked about" is the head of its brief, or a head named in one of its
+amendments. The plugin reads both from the stored Task, so a lost status never sends an
+amendment twice. A person may dispatch a queued Task at any time, whatever the policy.
+The plugin never sets `dispatch` back to `false`.
 
 ## Timing
 
@@ -69,8 +89,8 @@ applies on the next pass. The plugin never sets `dispatch` back to `false`.
 | `Reviewing` | `now + 60000`: the plugin follows the Task closely. |
 | `Queued` under `policy` | `now + 60000`: a slot may free up. |
 | `Queued` under `person`, `Reviewed`, `Excluded` | The source's own `notBefore` plus 5000: nothing changes before the next listing. |
-| `Settled` | `settledAt + retention.reviewMs`, or the next Task retention, whichever is first. |
-| `Retiring` | `now + 30000`, until every Task is gone. |
+| `Settled` | `settledAt + retention.reviewMs`, checked at least every 10 minutes. |
+| `Retiring` | `now + 30000`, until the Task is gone. |
 
 A spec change of the source does not make its Reviews due. Rules 3 and 4 apply on each
 Review's next pass, within the source's poll interval.
@@ -116,9 +136,9 @@ source's status.
 
 | Deleted object | What follows |
 | --- | --- |
-| A review Task, by a person | Rule 11: the head is `cancelled`. The plugin does not recreate it. |
-| A `Review`, by a person | Rule 1: its Tasks are deleted, then the finalizer is removed. If the change is still listed, the source creates a new `Review` on its next pass. To stop reviewing a change, exclude it in the source. |
-| A `ReviewSource`, by a person | Rule 3 on each `Review`: every Task is deleted, then each `Review`. |
+| The review Task, by a person | Rule 11: the head is `cancelled`. The plugin creates a new Task only for a later head. |
+| A `Review`, by a person | Rule 1: its Task is deleted, then the finalizer is removed. If the change is still listed, the source creates a new `Review` on its next pass. To stop reviewing a change, exclude it in the source. |
+| A `ReviewSource`, by a person | Rule 3 on each `Review`: the Task is deleted, then each `Review`. |
 | A Task the plugin deleted | The Task's own controller releases its session, as for any deletion. |
 
 ## Conditions

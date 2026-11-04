@@ -54,7 +54,6 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `dispatch.maxActive` | `2` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
 | `suspend` | `false` | `true` stops listing, creating and dispatching. Running Tasks continue. |
 | `pollMs` | `300000` | How often the source lists its repositories. At least 60000. |
-| `retention.taskMs` | `3600000` | How long a concluded review Task stays before the `Review` deletes it, which releases its session. |
 | `retention.reviewMs` | `604800000` | How long a settled `Review` stays before it retires. |
 
 JSON Schema keywords such as `default` are annotations. The plugin applies the defaults
@@ -150,15 +149,14 @@ created. Such a change is reviewed once, under the other source's settings.
     "phase": "Reviewing",
     "observedGeneration": 1,
     "head": {"sha": "9f3c2a1e0b7d…", "seenAt": 1730000300000},
-    "task": {"name": "rv-app-88-1b7d02-9f3c2a1e0b7d", "uid": "…", "head": "9f3c2a1e0b7d…",
-             "told": [], "dispatched": {"by": "policy", "at": 1730000400000}},
+    "task": {"name": "rv-app-88-1b7d02", "uid": "…", "head": "4a1d…",
+             "dispatched": {"by": "policy", "at": 1729940000000}},
     "reviews": [
-      {"head": "4a1d…", "task": "rv-app-88-1b7d02-4a1d…", "outcome": "shipped",
+      {"head": "4a1d…", "generation": 1, "task": "<the Task's uid>", "outcome": "shipped",
        "confidence": 4, "findings": 1, "summaryUrl": "https://github.com/OWNER/app/pull/88#issuecomment-…",
        "at": 1729950000000}
     ],
     "cancelled": [],
-    "retiring": [],
     "change": {"state": "open", "checkedAt": null},
     "conditions": [
       {"type": "Reviewed", "status": "False", "reason": "Reviewing",
@@ -172,10 +170,9 @@ created. Such a change is reviewed once, under the other source's settings.
 | --- | --- |
 | `phase` | `Queued`, `Reviewing`, `Reviewed`, `Excluded`, `Settled` or `Retiring`. See the [state machine](state-machine.md). |
 | `head` | The change's head as the source last listed it, and when this `Review` first saw it. |
-| `task` | The current review Task: name, `uid` once probed, the head it was briefed for, the heads it was told about since, and who dispatched it. |
-| `reviews` | One entry per concluded review Task, newest first, at most 10. A report-only entry carries `report`, the rendered summary, cut at 16 KiB. |
-| `cancelled` | Heads whose Task a person deleted before it concluded. The plugin does not review them again. At most 20. |
-| `retiring` | Tasks this `Review` asked Fleet to delete, kept until a probe shows each gone. |
+| `task` | The one review Task: name, `uid` once probed, the head it was briefed for, and who dispatched it. Later heads are in its amendments. |
+| `reviews` | One entry per result of the Task, one per generation, newest first, at most 10. A report-only entry carries `report`, the rendered summary, cut at 16 KiB. |
+| `cancelled` | Heads whose Task a person deleted. The plugin creates a new Task only for a later head. At most 20. |
 | `change` | `open`, `merged` or `closed`, and when the forge was last asked directly. |
 | `conditions` | `Reviewed`, `Dispatched` and `NeedsAttention`. |
 
@@ -184,7 +181,7 @@ created. Such a change is reviewed once, under the other source's settings.
 | Object | Name | Labels the plugin sets |
 | --- | --- | --- |
 | `Review` | `rv-<repo>-<number>-<hash>`: `<repo>` is the last path segment of the project, lowercased, with every other character than `a-z`, `0-9` and `-` replaced by `-`, cut at 40; `<hash>` is the first 6 hex digits of SHA-256 of `<host>/<project>!<number>`. | `fleet-reviewer/source` |
-| Review Task | `<review name>-<head>`: `<head>` is the first 12 hex digits of the head commit. | `fleet-reviewer/source`, `fleet-reviewer/review` |
+| Review Task | The `Review`'s name. One Task per change, for the change's life. | `fleet-reviewer/source`, `fleet-reviewer/review` |
 
 The host adds `fleet.dev/plugin: fleet-reviewer` to both. Names derive from facts, so a
 repeated pass creates nothing twice: the store answers `already` for a name this plugin
@@ -283,7 +280,6 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "taskMs": {"type": "integer", "minimum": 0, "default": 3600000},
         "reviewMs": {"type": "integer", "minimum": 0, "default": 604800000}
       }
     }

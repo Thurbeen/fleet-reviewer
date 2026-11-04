@@ -32,9 +32,10 @@ controller half must not depend on configuration outside spec.
 
 thurview's `pr-review` skill can follow a change until it merges, in one session.
 
-**Recommendation:** one Task per head. A session is bounded and concludes with a result
-for one head. `maxActive` then bounds work, not sleeping sessions. A push during a review
-reaches the running session through its inbox, so no head is reviewed twice.
+**Decided:** one Task per change, for the change's life. A push amends it, which reopens a
+Concluded Task in the same session, with its worktree and what it already reviewed.
+`maxActive` counts Tasks that work, so a Concluded Task between pushes takes no slot. A
+Concluded session still waits on its host until the change merges or closes.
 
 ## 5. Should a review Task declare the change it reviews?
 
