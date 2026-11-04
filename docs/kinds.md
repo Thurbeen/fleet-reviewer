@@ -25,16 +25,17 @@ A person applies sources. The plugin creates every `Review`. A person may delete
     "forge": {"kind": "github", "host": "github.com", "tokenEnv": "REVIEWER_TOKEN_A",
               "maxCallsPerMinute": 30},
     "repositories": [{"project": "OWNER/app"}, {"project": "OWNER/app-infra"}],
-    "filters": {"staleAfterDays": 14, "excludeAuthors": ["release-robot"]},
-    "review": {"taskConfig": "review-github", "output": "report", "page": "none"},
-    "dispatch": {"by": "person", "maxActive": 2}
+    "filters": {"requestedReviewer": "reviewer-login", "staleAfterDays": 14,
+                "excludeAuthors": ["release-robot"]},
+    "review": {"taskConfig": "review-github", "output": "post", "approveAt": 4},
+    "dispatch": {"by": "policy", "maxActive": 2}
   }
 }
 ```
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `forge.kind` | required | `github` or `gitlab`. |
+| `forge.kind` | required | `github` or `gitlab`. `fake` reads Fleet's fake-forge files; only the tests use it. |
 | `forge.host` | required | The forge's host name, as in a change URL. |
 | `forge.apiUrl` | derived | `https://api.github.com` for `github.com`, `https://<host>/api/v3` for another GitHub host, `https://<host>/api/v4` for GitLab. |
 | `forge.tokenEnv` | required | The name of the variable that holds the token the plugin reads this forge with. The value never appears in a spec. See [Configuration](configuration.md#credentials). |
@@ -44,10 +45,12 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `repositories[].targetBranches` | all | Only changes into these branches are included. |
 | `filters` | see [Filters](#filters) | Which open changes are reviewed. |
 | `review.taskConfig` | required | The [TaskConfig](https://github.com/Thurbeen/fleet/blob/main/docs/resources/task-config.md) the review Tasks reference: harness, host, model and the session's credentials. |
-| `review.output` | `report` | `post`: the Task posts the summary and the finding threads. `report`: the Task posts nothing and returns the rendered summary in its result. |
-| `review.page` | `none` | `none`: no thurview page is published. `snapshot`: the Task publishes thurview's public snapshot and links it. `snapshot` requires `output: post`. |
+| `review.template` | `generic` | The brief. `generic`: a review by the brief's own steps. `thurview`: the optional thurview `pr-review` flow. See [the brief](review-task.md#the-brief). |
+| `review.output` | `post` | `post`: the Task posts the summary and the finding threads. `report`: the Task posts nothing and returns the rendered summary in its result. |
+| `review.page` | `none` | With `template: thurview` only. `none`: no page is published. `snapshot`: the Task publishes thurview's public snapshot and links it. `snapshot` requires `output: post`. |
+| `review.approveAt` | none | 1 to 5. With `output: post`, the brief tells the Task to approve the head it reviewed when its confidence is at least this value. Without it, the Task never approves. |
 | `review.guidance` | none | Text the brief adds under "Repository guidance". At most 4000 characters. |
-| `dispatch.by` | `person` | `person`: a person dispatches each Task. `policy`: the plugin dispatches it under `maxActive`. |
+| `dispatch.by` | `policy` | `policy`: the plugin dispatches each Task under `maxActive`. `person`: a person dispatches each Task. |
 | `dispatch.maxActive` | `2` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
 | `suspend` | `false` | `true` stops listing, creating and dispatching. Running Tasks continue. |
 | `pollMs` | `300000` | How often the source lists its repositories. At least 60000. |
@@ -64,6 +67,7 @@ and its status entry names the first rule that excluded it.
 
 | Field | Default | Excludes |
 | --- | --- | --- |
+| `requestedReviewer` | none | When given, a change that does not request this login's review. A change this login already reviewed stays included while its `Review` exists. |
 | `drafts` | `false` | A draft change, unless `true`. |
 | `bots` | `false` | A change by a bot account, unless `true`. |
 | `deletedAuthors` | `false` | A change whose author account no longer exists, unless `true`. |
@@ -72,7 +76,7 @@ and its status entry names the first rule that excluded it.
 | `excludeAuthors` | `[]` | A change by one of these logins. |
 | `onlyAuthors` | all | A change by any other login, when the list is given. |
 | `requireLabels` | `[]` | A change that lacks one of these labels. |
-| `excludeLabels` | `["thurview:stop"]` | A change that has one of these labels. |
+| `excludeLabels` | `["review:stop"]` | A change that has one of these labels. |
 
 How the observer decides each fact, per forge:
 
@@ -208,7 +212,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "additionalProperties": false,
       "required": ["kind", "host", "tokenEnv"],
       "properties": {
-        "kind": {"enum": ["github", "gitlab"]},
+        "kind": {"enum": ["github", "gitlab", "fake"]},
         "host": {"type": "string", "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?$"},
         "apiUrl": {"type": "string", "pattern": "^https://[^\\s]+$"},
         "tokenEnv": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]{0,127}$"},
@@ -235,6 +239,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "requestedReviewer": {"type": "string", "minLength": 1},
         "drafts": {"type": "boolean", "default": false},
         "bots": {"type": "boolean", "default": false},
         "deletedAuthors": {"type": "boolean", "default": false},
@@ -248,7 +253,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
                           "items": {"type": "string", "minLength": 1}},
         "excludeLabels": {"type": "array", "uniqueItems": true,
                           "items": {"type": "string", "minLength": 1},
-                          "default": ["thurview:stop"]}
+                          "default": ["review:stop"]}
       }
     },
     "review": {
@@ -257,8 +262,10 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "required": ["taskConfig"],
       "properties": {
         "taskConfig": {"type": "string", "pattern": "^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$"},
-        "output": {"enum": ["post", "report"], "default": "report"},
+        "template": {"enum": ["generic", "thurview"], "default": "generic"},
+        "output": {"enum": ["post", "report"], "default": "post"},
         "page": {"enum": ["none", "snapshot"], "default": "none"},
+        "approveAt": {"type": "integer", "minimum": 1, "maximum": 5},
         "guidance": {"type": "string", "maxLength": 4000}
       }
     },
@@ -266,7 +273,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "by": {"enum": ["person", "policy"], "default": "person"},
+        "by": {"enum": ["person", "policy"], "default": "policy"},
         "maxActive": {"type": "integer", "minimum": 1, "maximum": 20, "default": 2}
       }
     },
@@ -284,9 +291,9 @@ the `jsonschema` crate, whose default is draft 2020-12.
 }
 ```
 
-The rule "`snapshot` requires `output: post`" is not in the schema, so that the store's
-refusal stays simple. The source's pass refuses it instead: it lists nothing and raises
-`NeedsAttention/InvalidSpec`.
+Two rules are not in the schema, so that the store's refusal stays simple: `snapshot`
+requires `output: post`, and `snapshot` requires `template: thurview`. The source's pass
+refuses them instead: it lists nothing and raises `NeedsAttention/InvalidSpec`.
 
 ### Review spec schema
 
@@ -301,7 +308,7 @@ refusal stays simple. The source's pass refuses it instead: it lists nothing and
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "host"],
-      "properties": {"kind": {"enum": ["github", "gitlab"]}, "host": {"type": "string"}}
+      "properties": {"kind": {"enum": ["github", "gitlab", "fake"]}, "host": {"type": "string"}}
     },
     "project": {"type": "string", "minLength": 1},
     "number": {"type": "integer", "minimum": 1},

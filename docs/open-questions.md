@@ -66,9 +66,10 @@ command may print a `ReviewSource` from a list of mapped URLs for a person to ed
 
 ## 8. How the plugin is distributed
 
-**Recommendation:** publish the bundled `dist/plugin.js` as the npm package
-`fleet-reviewer` (the name is free on npm today) and as a GitHub release asset with its
-SHA-256. The operator installs a pinned version into a directory and registers that path.
+**Decided:** no bundle and no package. `src/plugin.ts` uses only TypeScript syntax that
+Node.js strips, and it has no runtime dependency. Node.js 22.18 or later runs it as is.
+The operator checks out a pinned commit or release tag and registers that path. The
+operator installs no new binary.
 
 ## 9. The Fleet TypeScript SDK
 

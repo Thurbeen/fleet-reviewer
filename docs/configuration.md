@@ -6,14 +6,15 @@ The controller half reads neither the config nor the environment: what it needs 
 
 ## Registration
 
-A release ships one bundled file, `dist/plugin.js`, that runs on Node.js with no other
-dependency. The operator installs it on the manager and registers it under
+The plugin is `src/plugin.ts`. Node.js 22.18 or later runs it as is: no build, no package,
+no runtime dependency. The operator checks out a pinned commit or release tag on the
+manager, needs no new binary, and registers it under
 [`[plugins.<name>]`](https://github.com/Thurbeen/fleet/blob/main/docs/configuration/fleet-toml.md#plugins-section):
 
 ```toml
 [plugins.fleet-reviewer]
 program = "/usr/local/bin/node"
-args = ["/opt/fleet-plugins/fleet-reviewer/dist/plugin.js"]
+args = ["/opt/fleet-plugins/fleet-reviewer/src/plugin.ts"]
 cwd = "/opt/fleet-plugins/fleet-reviewer"
 callTimeoutMs = 15000
 tasks = "own"
@@ -23,7 +24,7 @@ envFrom = [{ name = "fleet-reviewer-tokens" }]
 | Field | Value | Why |
 | --- | --- | --- |
 | Key | `fleet-reviewer` | The manifest's `name` must equal it. |
-| `program`, `args`, `cwd` | Absolute paths on the manager | Fleet runs no shell and searches no `PATH`. |
+| `program`, `args`, `cwd` | Absolute paths on the manager | Fleet runs no shell and searches no `PATH`. `program` is the Node.js already installed; a version manager's stable alias path survives upgrades. |
 | `callTimeoutMs` | `15000` | One forge page per call fits in it. A slow self-hosted forge may need more. |
 | `tasks` | `"own"` | The plugin patches, sends to and deletes only the Tasks it created. |
 | `envFrom` | The EnvProvider that holds the forge tokens | Only the observer half receives it. |
@@ -38,7 +39,7 @@ Two identities act for each forge, and each has its own place:
 | Identity | Acts in | Configured by |
 | --- | --- | --- |
 | The plugin's forge reader | `observe`: listings and reads, no write | `ReviewSource.spec.forge.tokenEnv` names a variable that `envFrom` delivers. |
-| The review session | The review Task: checkout, thurview, posts | `ReviewSource.spec.review.taskConfig` names a TaskConfig. |
+| The review session | The review Task: checkout, review, posts, an optional approval | `ReviewSource.spec.review.taskConfig` names a TaskConfig. |
 
 The TaskConfig picks the harness, the host, the model, and the EnvProviders that give the
 session its forge login and its harness account. Two forges with two accounts and two

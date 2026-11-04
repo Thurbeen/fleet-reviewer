@@ -1,7 +1,7 @@
 # Agent rules
 
 fleet-reviewer is a Fleet plugin, written in TypeScript, that finds open pull and merge
-requests and starts review Tasks. Today the repository holds its design only. Read
+requests and starts review Tasks. The code is in `src/`, the tests in `test/`. Read
 [the design](docs/README.md) before a change in its area, and Fleet's
 [plugin contract](https://github.com/Thurbeen/fleet/tree/main/docs/controllers/plugin)
 before a change to a call, a probe or a plan. Keep the design simple and explicit.
@@ -30,7 +30,8 @@ The plugin has two halves in one program, selected by the call Fleet makes.
   variable, clock, process or network. Everything it decides arrives in the request.
 - The observer half (`observe`, `perform`) reads the forge, bounded by Fleet's call
   timeout, and answers Known or Unknown. It writes nothing on a forge.
-- Every forge write is the review Task's, through thurview. The plugin plans no effects.
+- Every forge write is the review Task's, an optional approval included. The plugin plans
+  no effects.
 - Unknown never means absent, closed, empty or excluded.
 - The plugin persists nothing outside the status of its own objects.
 
@@ -44,9 +45,10 @@ a missing Fleet verb by reaching past the protocol.
 lints Markdown with rumdl, shell scripts with ShellCheck, and scans for secrets with
 gitleaks. Install the hooks once with `prek install`.
 
-The implementation will use Node.js, pnpm, TypeScript and Vitest, as thurview does. Add
-`package.json`, the lockfile and their gate steps with the first code, at the latest
-stable versions checked then. Do not add a toolchain before code needs it.
+The plugin uses Node.js, pnpm, TypeScript and Vitest. It must run unbuilt: write only
+TypeScript syntax that Node.js strips (`erasableSyntaxOnly`), import with `.ts`
+extensions, and add no runtime dependency. Development dependencies are fine. Check new
+versions in the registry first.
 
 Read `~/.agent-rules/OPINIONS.md` before picking tools, adding dependencies or changing CI.
 Read `~/.agent-rules/VOICE.md` before publishing prose on behalf of the operator. Do not

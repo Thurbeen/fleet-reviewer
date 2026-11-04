@@ -61,9 +61,12 @@ token variable, because the observer half receives nothing else of the object:
 | `op` | Reads | Known answer | Calls |
 | --- | --- | --- | --- |
 | `whoami` | The authenticated account | `{login, calls}` | 1 |
-| `listChanges` | Every open change of one project, every page | `{changes: [{number, url, title, author: {login, kind}, draft, head, headAt, base, labels}], calls}` | 1 per 100 changes, at most `maxCalls` |
+| `listChanges` | Every open change of one project, every page | `{changes: [{number, url, title, author: {login, kind}, draft, head, headAt, base, labels, requested, reviewedBy}], calls}` | 1 per 100 changes, at most `maxCalls` |
 | `readChange` | One change | `{state: "open" \| "merged" \| "closed", head, calls}` | 1 |
 | `readHeadDate` | One commit (GitLab) | `{headAt, calls}` | 1 |
+
+`requested` lists the logins whose review the change requests. `reviewedBy` lists the
+logins with a submitted review; GitHub fills it, GitLab keeps reviewers in `requested`.
 
 `author.kind` is `user`, `bot` or `deleted`, decided per forge as
 [Filters](kinds.md#filters) says. `calls` is the number of HTTP requests the answer cost,
@@ -142,8 +145,8 @@ because Fleet fences those verbs on the `uid`.
 
 ## `perform`
 
-The plugin plans no effects. Every forge write is the review Task's, through thurview, so
-a write happens in a session that a person can watch and stop. `perform` answers
+The plugin plans no effects. Every forge write is the review Task's, an approval included,
+so a write happens in a session that a person can watch and stop. `perform` answers
 `{"outcome": {"failed": {"why": "NoEffects"}}}` and writes nothing.
 
 ## Rate limits
