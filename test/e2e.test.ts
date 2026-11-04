@@ -82,7 +82,13 @@ class Env {
 
   /** One manager pass after every plugin object's wait has expired. */
   sweep() {
-    for (const kind of ['ReviewSource', 'Review']) {
+    this.expire('ReviewSource', 'Review');
+    this.ok('reconcile');
+  }
+
+  /** Make every object of these kinds due now. */
+  expire(...kinds: string[]) {
+    for (const kind of kinds) {
       const dir = join(this.root, 'data/objects', kind);
       let files: string[] = [];
       try {
@@ -97,7 +103,24 @@ class Env {
         writeFileSync(path, JSON.stringify(obj));
       }
     }
-    this.ok('reconcile');
+  }
+
+  /** Mark every fake session at rest, as Fleet's own tests do with `set_at_rest`. */
+  restSessions() {
+    const visit = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, e.name);
+        if (e.isDirectory()) visit(path);
+        else if (e.name === 'state.json') {
+          const state = JSON.parse(readFileSync(path, 'utf8'));
+          for (const session of Object.values(state.sessions ?? {})) {
+            (session as { atRest: boolean }).atRest = true;
+          }
+          writeFileSync(path, JSON.stringify(state));
+        }
+      }
+    };
+    visit(join(this.root, 'fake'));
   }
 
   forgeFile(name: string, v: object) {
@@ -210,6 +233,42 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(review.status.phase).toBe('Settled');
     expect(review.status.change.state).toBe('merged');
     expect(env.reviewTasks()).toHaveLength(0);
+  });
+
+  it('recreates a deleted Review soon after it is gone', () => {
+    const env = setup();
+    const [before] = env.list('review');
+    const [oldTask] = env.reviewTasks();
+    // Fleet releases a session only at rest.
+    env.restSessions();
+    env.ok('delete', 'review', before.metadata.name);
+
+    // A pass while the Review is still deleting: it releases its Task first.
+    env.expire('ReviewSource', 'Review');
+    env.ok('reconcile');
+    const source = env.get('reviewsource', 'app');
+    expect(source.status.changes[`${PROJECT}!1`].reviewState).toBe('deleting');
+    expect(source.status.notBefore - Date.now()).toBeLessThan(60_000);
+
+    // The Review lets go once its Task is gone; the source's next pass recreates it.
+    for (let i = 0; i < 3 && env.fleet('get', 'review', before.metadata.name).code === 0; i++) {
+      env.expire('Review');
+      env.ok('reconcile');
+    }
+    expect(env.fleet('get', 'review', before.metadata.name).code).toBe(3);
+    env.expire('ReviewSource');
+    env.ok('reconcile');
+    env.sweep();
+    const [after] = env.list('review');
+    expect(after.metadata.name).toBe(before.metadata.name);
+    expect(after.metadata.uid).not.toBe(before.metadata.uid);
+    const tasks = env.reviewTasks();
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].metadata.uid).not.toBe(oldTask.metadata.uid);
+    expect(tasks[0].spec.dispatch).toBe(true);
+    expect(env.get('reviewsource', 'app').status.changes[`${PROJECT}!1`].reviewState).toBe(
+      'present',
+    );
   });
 
   it('stops the review once the user is no longer a requested reviewer', () => {
