@@ -66,7 +66,7 @@ review of `reviewer-login`, posts, and approves at a confidence of 4 or more:
     "repositories": [{"project": "OWNER/app"}],
     "filters": {"requestedReviewer": "reviewer-login"},
     "review": {"taskConfig": "review-gitlab", "approveAt": 4},
-    "dispatch": {"maxActive": 2}
+    "dispatch": {"maxActive": 5}
   }
 }
 ```

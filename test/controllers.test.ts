@@ -201,7 +201,7 @@ describe('Review', () => {
     const plan = reviewPass(rv({ phase: 'Queued', task: { name: NAME, head: H1 } }), {
       source: { known: listed() },
       task: { known: task() },
-      queue: { known: [busy, busy, task()] },
+      queue: { known: [...Array(5).fill(busy), task()] },
     });
     expect(plan.patches).toBeUndefined();
     expect(plan.status.conditions.find((c: any) => c.type === 'Dispatched').reason).toBe(

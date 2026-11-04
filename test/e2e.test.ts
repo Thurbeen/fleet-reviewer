@@ -217,6 +217,20 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(env.list('review')).toHaveLength(1);
   });
 
+  it('runs up to five review Tasks at once when the source sets no maxActive', () => {
+    const env = setup();
+    for (const id of [2, 3, 4, 5, 6]) {
+      env.setChange(id, 'open', HEAD1);
+      env.request(id, ['alice']);
+    }
+    env.sweep();
+    env.sweep();
+    env.sweep();
+    const tasks = env.reviewTasks();
+    expect(tasks).toHaveLength(6);
+    expect(tasks.filter((t) => t.spec.dispatch)).toHaveLength(5);
+  });
+
   it('amends the same Task once per push, and deletes it when the change merges', () => {
     const env = setup();
     const [before] = env.reviewTasks();
