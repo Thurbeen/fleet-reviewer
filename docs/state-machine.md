@@ -116,6 +116,12 @@ Each pass does this:
 
 The source never deletes a `Review`. Each `Review` retires itself from what it reads.
 
+A deleted `Review` keeps its name until its Task is released. While an included change's
+`Review` is deleting, the source marks the entry `reviewState: deleting` and sets
+`notBefore` to `now + 30000`, or `pollMs` when that is shorter. The first pass after the
+`Review` is gone creates a new one, which briefs a new Task for the current head. Deleting
+a `Review` is therefore how a person restarts a review.
+
 ## Closed changes
 
 A listing holds open changes only. A change missing from the listing may be merged, closed

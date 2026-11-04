@@ -19,6 +19,8 @@ import {
 const LIST_MAX_CALLS = 3;
 const MAX_CREATES = 20;
 const MAX_ENTRIES = 200;
+/** How soon a source looks again while one of its Reviews is deleting. */
+const RECHECK_MS = 30_000;
 
 function others(obs: J, me: string, spec: SourceSpec): J[] {
   const all = known(obs.sources);
@@ -297,6 +299,9 @@ export function reconcile(req: J): J {
   const creates: J[] = [];
   const overlap: string[] = [];
   let pending = 0;
+  // A Review that is deleting still holds its name, so it cannot be created
+  // again until it is gone. Look again soon rather than one full poll later.
+  let leaving = 0;
   const keys = Object.keys(changes).sort();
   for (const key of keys) {
     const e = changes[key];
@@ -307,17 +312,25 @@ export function reconcile(req: J): J {
     if (v) e.reason = v;
     else delete e.reason;
     e.review = existing || !v ? rname : null;
+    if (existing)
+      e.reviewState = existing.metadata?.deletionTimestamp != null ? 'deleting' : 'present';
+    else if (v) delete e.reviewState;
     if (v) continue;
+    if (e.reviewState === 'deleting') leaving += 1;
     const repo = repositories[e.project];
     const stale = repo?.unknown && Number(repo.unknown.at) >= Number(repo.listedAt ?? 0);
     if (existing && existing.spec?.source !== name) {
       overlap.push(key);
-    } else if (!existing && !stale) {
+    } else if (!existing && stale) {
       // An Unknown listing creates nothing: its entries are the last ones read.
+      e.reviewState = 'waiting';
+    } else if (!existing) {
       if (creates.length >= MAX_CREATES) {
         pending += 1;
+        e.reviewState = 'waiting';
         continue;
       }
+      e.reviewState = 'creating';
       creates.push({
         apiVersion: 'fleet/v1alpha1',
         kind: 'Review',
@@ -375,7 +388,11 @@ export function reconcile(req: J): J {
       throttle,
       conditions,
     },
-    notBefore: pending ? now + 5000 : throttle?.until > now ? throttle.until : now + spec.pollMs,
+    notBefore: pending
+      ? now + 5000
+      : throttle?.until > now
+        ? throttle.until
+        : now + (leaving ? Math.min(RECHECK_MS, spec.pollMs) : spec.pollMs),
   };
   if (creates.length) plan.creates = creates;
   return plan;

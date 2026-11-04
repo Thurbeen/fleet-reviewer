@@ -73,6 +73,22 @@ describe('ReviewSource', () => {
     expect(plan.status.changes[`${P}!1`].verdict).toBe('included');
   });
 
+  it('marks a deleting Review and looks again soon, then recreates it once gone', () => {
+    const name = reviewName('github.com', P, 1);
+    const leaving = { metadata: { name, deletionTimestamp: NOW - 1 }, spec: { source: 'app' } };
+    const plan = sourcePass(src(), [pr(1)], [leaving]);
+    expect(plan.creates).toBeUndefined();
+    expect(plan.status.changes[`${P}!1`]).toMatchObject({ review: name, reviewState: 'deleting' });
+    expect(plan.notBefore).toBe(NOW + 30_000);
+
+    const again = sourcePass(src(), [pr(1)], []);
+    expect(again.creates.map((c: any) => c.metadata.name)).toEqual([name]);
+    expect(again.status.changes[`${P}!1`].reviewState).toBe('creating');
+    expect(again.notBefore).toBe(NOW + 300_000);
+    const settled = sourcePass(src(), [pr(1)], [{ metadata: { name }, spec: { source: 'app' } }]);
+    expect(settled.status.changes[`${P}!1`].reviewState).toBe('present');
+  });
+
   it('applies the filters in order', () => {
     const spec = sourceSpec(src().spec);
     const v = (e: any) =>

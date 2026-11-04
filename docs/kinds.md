@@ -126,6 +126,7 @@ move the "updated" time, and an old change would look fresh after each review.
 | `repositories` | Per project: when it was last listed completely, and the last Unknown answer, if newer. |
 | `changes` | One entry per open change last listed, keyed `<project>!<number>`. A project whose last answer was Unknown keeps its previous entries. At most 200 entries. |
 | `changes[].review` | The `Review` name, or `null` for an excluded change that never had one. |
+| `changes[].reviewState` | Where that `Review` stands: `present`; `creating`, planned this pass; `deleting`, still in the store while it releases its Task; `waiting`, for the next listing or a free create. Absent for an excluded change without a `Review`. |
 | `budget` | Calls made in the current minute, `minute` being `floor(now / 60000)`. |
 | `throttle` | `{until, streak, why}` after a rate-limit answer; `null` otherwise. |
 | `conditions` | `Listed`, `Throttled`, `Overlap` and `NeedsAttention`. |
