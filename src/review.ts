@@ -11,6 +11,7 @@ import {
   changeKey,
   condition,
   known,
+  checkoutHead,
   sameHead,
   sourceSpec,
 } from './util.ts';
@@ -37,10 +38,12 @@ function listing(source: J, spec: J) {
 }
 
 /** The amendment text for a new head. The head in it is how a pass sees it was sent. */
-export function amendText(head: string): string {
+export function amendText(head: string, checkout?: string): string {
   return (
-    `The change's head moved to ${head}. Review what the new push added since the head you ` +
-    `last reviewed, then record a result for this generation with --output head='"${head}"'.`
+    `The change's head moved to ${head}. ` +
+    (checkout ? `Run \`${checkout}\`, then review` : 'Review') +
+    ` what the new push added since the head you last reviewed, then record a result for this ` +
+    `generation with --output head='"${head}"'.`
   );
 }
 
@@ -303,7 +306,7 @@ export function reconcile(req: J): J {
       {
         task: name,
         uid: t.metadata.uid,
-        text: amendText(head),
+        text: amendText(head, checkoutHead(spec.forge.kind, me.spec.number, head)),
         reason: "the change's head moved",
         ifGeneration: t.metadata.generation,
       },
@@ -343,7 +346,17 @@ function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: 
     metadata: { name, labels: { [LABEL_SOURCE]: me.spec.source, [LABEL_REVIEW]: name } },
     spec: {
       configRef: { name: spec.review.taskConfig },
-      workspace: { repositories: [{ name: repoName, url: repo?.url }] },
+      // The worktree starts from the branch the change merges into; the brief's step 0
+      // then fetches the change's own head, because the runtime does not fetch.
+      workspace: {
+        repositories: [
+          {
+            name: repoName,
+            url: repo?.url,
+            ...(entry.base ? { ref: `origin/${entry.base}` } : {}),
+          },
+        ],
+      },
       brief: brief(
         spec,
         {
@@ -352,6 +365,7 @@ function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: 
           base: entry.base ?? '',
           title: entry.title ?? '',
           author: entry.author?.login ?? '',
+          number: me.spec.number,
         },
         name,
       ),

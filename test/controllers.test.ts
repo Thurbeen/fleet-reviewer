@@ -219,7 +219,10 @@ describe('Review', () => {
       {
         task: NAME,
         uid: 'u1',
-        text: review.amendText(H2),
+        text: review.amendText(
+          H2,
+          `git fetch origin refs/pull/1/head && git checkout --detach ${H2}`,
+        ),
         reason: "the change's head moved",
         ifGeneration: 1,
       },
@@ -227,7 +230,15 @@ describe('Review', () => {
     // The amendment landed: the store holds it, so a later pass, even with a lost status, sends nothing.
     const amended = running();
     amended.metadata.generation = 2;
-    amended.spec.amendments = [{ text: review.amendText(H2), generation: 2 }];
+    amended.spec.amendments = [
+      {
+        text: review.amendText(
+          H2,
+          `git fetch origin refs/pull/1/head && git checkout --detach ${H2}`,
+        ),
+        generation: 2,
+      },
+    ];
     for (const obj of [following(), rv()]) {
       const again = reviewPass(obj, { source: { known: listed(H2) }, task: { known: amended } });
       expect(again.amends).toBeUndefined();
@@ -337,8 +348,32 @@ describe('Review', () => {
   });
 });
 
+describe('the change head', () => {
+  it('starts from origin/<target> and fetches the forge head ref', () => {
+    const gh = review.reconcile({
+      object: rv(),
+      now: NOW,
+      observations: { source: { known: listed() }, task: { known: null } },
+    });
+    expect(gh.creates[0].spec.workspace.repositories[0].ref).toBe('origin/main');
+    expect(gh.creates[0].spec.brief).toContain('git fetch origin refs/pull/1/head');
+    const lab = src(
+      { forge: { kind: 'gitlab', host: 'gitlab.example.com', tokenEnv: 'T' } },
+      listed().status,
+    );
+    const gl = review.reconcile({
+      object: rv(),
+      now: NOW,
+      observations: { source: { known: lab }, task: { known: null } },
+    });
+    expect(gl.creates[0].spec.brief).toContain('git fetch origin refs/merge-requests/1/head');
+    expect(gl.creates[0].spec.brief).toContain(`git checkout --detach ${H1}`);
+  });
+});
+
 describe('brief', () => {
   const change = {
+    number: 1,
     url: 'https://github.com/OWNER/app/pull/1',
     head: H1,
     base: 'main',

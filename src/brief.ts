@@ -1,6 +1,6 @@
 // The review Task's brief (docs/review-task.md#the-brief). Pure.
 
-import type { SourceSpec } from './util.ts';
+import { type SourceSpec, checkoutHead } from './util.ts';
 
 export interface BriefChange {
   url: string;
@@ -8,6 +8,7 @@ export interface BriefChange {
   base: string;
   title: string;
   author: string;
+  number: number;
 }
 
 export function brief(spec: SourceSpec, change: BriefChange, task: string): string {
@@ -24,6 +25,9 @@ export function brief(spec: SourceSpec, change: BriefChange, task: string): stri
     '',
     `Mode: ${r.output}${r.template === 'thurview' ? `, page ${r.page}` : ''}.`,
     '',
+    "0. Start from the change's own head. Your worktree began on the target branch, which may be",
+    `   behind: run \`${checkoutHead(spec.forge.kind, change.number, change.head)}\`. Read the`,
+    "   repository's rules (AGENTS.md, CLAUDE.md, CONTRIBUTING.md) and its code from that head.",
   ];
   if (r.template === 'thurview') {
     lines.push(

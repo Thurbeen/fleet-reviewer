@@ -201,6 +201,10 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(task.metadata.labels['fleet.dev/plugin']).toBe('fleet-reviewer');
     expect(task.spec.dispatch).toBe(true);
     expect(task.spec.brief).toContain('https://forge.test/example/project/pull/1');
+    // The worktree starts from the target branch, and the reviewer reads the change's own head.
+    expect(task.spec.workspace.repositories[0].ref).toBe('origin/main');
+    expect(task.spec.brief).toContain('git fetch origin refs/pull/1/head');
+    expect(task.spec.brief).toContain(`git checkout --detach ${HEAD1}`);
     const source = env.get('reviewsource', 'app');
     expect(source.status.changes[`${PROJECT}!2`].reason).toBe('requestedReviewer');
 
@@ -224,6 +228,7 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(task.metadata.generation).toBe(before.metadata.generation + 1);
     expect(task.spec.amendments).toHaveLength(1);
     expect(task.spec.amendments[0].text).toContain(HEAD2);
+    expect(task.spec.amendments[0].text).toContain(`git checkout --detach ${HEAD2}`);
     expect(task.spec.amendments[0].from).toBe('plugin/fleet-reviewer');
 
     env.setChange(1, 'merged', HEAD2);
