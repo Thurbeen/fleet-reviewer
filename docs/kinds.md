@@ -28,7 +28,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
     "filters": {"requestedReviewer": "reviewer-login", "staleAfterDays": 14,
                 "excludeAuthors": ["release-robot"]},
     "review": {"taskConfig": "review-github", "output": "post", "approveAt": 4},
-    "dispatch": {"by": "policy", "maxActive": 2}
+    "dispatch": {"by": "policy", "maxActive": 5}
   }
 }
 ```
@@ -51,7 +51,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `review.approveAt` | none | 1 to 5. With `output: post`, the brief tells the Task to approve the head it reviewed when its confidence is at least this value. Without it, the Task never approves. |
 | `review.guidance` | none | Text the brief adds under "Repository guidance". At most 4000 characters. |
 | `dispatch.by` | `policy` | `policy`: the plugin dispatches each Task under `maxActive`. `person`: a person dispatches each Task. |
-| `dispatch.maxActive` | `2` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
+| `dispatch.maxActive` | `5` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
 | `suspend` | `false` | `true` stops listing, creating and dispatching. Running Tasks continue. |
 | `pollMs` | `300000` | How often the source lists its repositories. At least 60000. |
 | `retention.reviewMs` | `604800000` | How long a settled `Review` stays before it retires. |
@@ -272,7 +272,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
       "additionalProperties": false,
       "properties": {
         "by": {"enum": ["person", "policy"], "default": "policy"},
-        "maxActive": {"type": "integer", "minimum": 1, "maximum": 20, "default": 2}
+        "maxActive": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5}
       }
     },
     "suspend": {"type": "boolean", "default": false},

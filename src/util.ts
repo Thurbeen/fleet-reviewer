@@ -88,7 +88,7 @@ export function sourceSpec(spec: J) {
     },
     dispatch: {
       by: (dispatch.by ?? 'policy') as 'policy' | 'person',
-      maxActive: dispatch.maxActive ?? 2,
+      maxActive: dispatch.maxActive ?? 5,
     },
     suspend: spec?.suspend ?? false,
     pollMs: Math.max(spec?.pollMs ?? 300_000, MINUTE),
