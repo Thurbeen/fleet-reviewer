@@ -25,3 +25,6 @@ temp/
 node_modules/
 dist/
 coverage/
+
+# Lint cache
+.rumdl_cache/

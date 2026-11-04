@@ -33,3 +33,26 @@ repos:
     rev: v0.11.0.1-1
     hooks:
       - id: shellcheck
+
+  # The plugin: plain TypeScript that Node.js runs as is. These run the same
+  # scripts CI runs.
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: typecheck
+        entry: pnpm typecheck
+        language: system
+        pass_filenames: false
+        files: \.(ts|json)$
+      - id: prettier
+        name: prettier
+        entry: pnpm fmt:check
+        language: system
+        pass_filenames: false
+        files: \.(ts|json|ya?ml)$
+      - id: test
+        name: test
+        entry: pnpm test
+        language: system
+        pass_filenames: false
+        files: \.(ts|json)$

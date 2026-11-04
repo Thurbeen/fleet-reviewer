@@ -29,5 +29,15 @@
       "matchManagers": ["npm"],
       "minimumReleaseAge": "14 days"
     }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The Fleet release the end-to-end tests run against.",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
+      "matchStrings": ["FLEET_VERSION: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "Thurbeen/fleet",
+      "datasourceTemplate": "github-releases"
+    }
   ]
 }
