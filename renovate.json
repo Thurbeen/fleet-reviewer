@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "security:openssf-scorecard", "mergeConfidence:all-badges"],
+  "labels": ["dependencies"],
+  "automerge": true,
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "osvVulnerabilityAlerts": true,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "fix",
+  "semanticCommitScope": "deps",
+  "pre-commit": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "CI's actions, pinned by SHA with the version in a trailing comment.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "A runtime dependency changes what users install, so it lands as a fix. Dev dependencies, actions and hooks stay chore.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["dependencies"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "npm packages wait longer before an update is proposed.",
+      "matchManagers": ["npm"],
+      "minimumReleaseAge": "14 days"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The Fleet release the end-to-end tests run against.",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yml$/"],
+      "matchStrings": ["FLEET_VERSION: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "Thurbeen/fleet",
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}

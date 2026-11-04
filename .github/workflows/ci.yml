@@ -1,0 +1,113 @@
+---
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# CI lints the docs and runs the plugin's type-check, format check and tests,
+# end to end against the pinned Fleet release. Commit messages on the branch are not
+# checked here: squash merge discards them, and the PR title that becomes the
+# commit is checked by pr-title.yml. A branch ruleset requires "All Checks"
+# and "PR Title"; add every new job to `all-checks.needs`.
+env:
+  # The Fleet release the end-to-end tests run against.
+  FLEET_VERSION: v2.19.0
+
+jobs:
+  plugin:
+    name: Plugin (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 is the oldest line that runs TypeScript without a flag.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - name: Download the pinned Fleet release and verify its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/fleet" && cd "$RUNNER_TEMP/fleet"
+          asset="fleet-${FLEET_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          gh release download "$FLEET_VERSION" -R Thurbeen/fleet \
+            -p "$asset" -p "fleet-${FLEET_VERSION}-checksums.txt"
+          grep " $asset\$" "fleet-${FLEET_VERSION}-checksums.txt" | sha256sum -c -
+          tar xzf "$asset"
+          echo "FLEET_BIN=$RUNNER_TEMP/fleet/fleet" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm fmt:check
+      - run: pnpm test
+        env:
+          FLEET_E2E_REQUIRED: '1'
+      - name: The plugin runs without a build or a dependency
+        run: |
+          echo '{"protocol":1,"plugin":"fleet-reviewer","id":"m"}' \
+            | node src/plugin.ts manifest | grep -q '"ok":true'
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: rvben/rumdl@1e0f1d13c87418c31e0d59dacddd98f27a02efcc # v0.3.2
+        with:
+          report-type: annotations
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck
+
+  svg:
+    name: SVG well-formed
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Diagrams are hand-written SVG; a broken one renders as a broken image
+      # on GitHub without any other signal.
+      - name: Parse every SVG
+        run: |
+          git ls-files -z '*.svg' | xargs -0 --no-run-if-empty -n1 \
+            python3 -c 'import sys, xml.dom.minidom; xml.dom.minidom.parse(sys.argv[1])'
+
+  all-checks:
+    name: All Checks
+    if: always()
+    needs:
+      - plugin
+      - markdown-lint
+      - shellcheck
+      - svg
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify all checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more checks failed or were cancelled"
+            exit 1
+          fi
+          echo "All checks passed"

@@ -1,0 +1,25 @@
+{
+  "name": "fleet-reviewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fleet plugin: discover open pull and merge requests and start review Tasks",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check .",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm fmt:check && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
