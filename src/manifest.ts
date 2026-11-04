@@ -82,7 +82,6 @@ export const sourceSpecSchema = {
       type: "object",
       additionalProperties: false,
       properties: {
-        taskMs: { type: "integer", minimum: 0 },
         reviewMs: { type: "integer", minimum: 0 },
       },
     },
@@ -129,7 +128,6 @@ export const reviewStatusSchema = statusSchema(
     "task",
     "reviews",
     "cancelled",
-    "retiring",
     "change",
     "settledAt",
     "conditions",

@@ -173,13 +173,11 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     const tasks = env.reviewTasks();
     expect(tasks.map((t) => t.metadata.name)).toHaveLength(1);
     const task = tasks[0];
+    const [review] = env.list("review");
+    expect(task.metadata.name).toBe(review.metadata.name);
     expect(task.metadata.labels["fleet.dev/plugin"]).toBe("fleet-reviewer");
     expect(task.spec.dispatch).toBe(true);
     expect(task.spec.brief).toContain("https://forge.test/example/project/pull/1");
-    expect(task.metadata.name.endsWith(HEAD1.slice(0, 12))).toBe(true);
-
-    const reviews = env.list("review");
-    expect(reviews).toHaveLength(1);
     const source = env.get("reviewsource", "app");
     expect(source.status.changes[`${PROJECT}!2`].reason).toBe("requestedReviewer");
 
@@ -188,16 +186,22 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     const again = env.reviewTasks();
     expect(again).toHaveLength(1);
     expect(again[0].metadata.uid).toBe(task.metadata.uid);
+    expect(again[0].metadata.generation).toBe(task.metadata.generation);
     expect(env.list("review")).toHaveLength(1);
   });
 
-  it("tells the running Task about a push, and settles when the change merges", () => {
+  it("amends the same Task once per push, and deletes it when the change merges", () => {
     const env = setup();
+    const [before] = env.reviewTasks();
     env.setChange(1, "open", HEAD2);
     env.sweep();
+    env.sweep();
     const [task] = env.reviewTasks();
-    expect(JSON.stringify(task.status)).toContain(`head/${HEAD2}`);
-    expect(env.reviewTasks()).toHaveLength(1);
+    expect(task.metadata.uid).toBe(before.metadata.uid);
+    expect(task.metadata.generation).toBe(before.metadata.generation + 1);
+    expect(task.spec.amendments).toHaveLength(1);
+    expect(task.spec.amendments[0].text).toContain(HEAD2);
+    expect(task.spec.amendments[0].from).toBe("plugin/fleet-reviewer");
 
     env.setChange(1, "merged", HEAD2);
     env.sweep();
@@ -205,14 +209,16 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     const [review] = env.list("review");
     expect(review.status.phase).toBe("Settled");
     expect(review.status.change.state).toBe("merged");
+    expect(env.reviewTasks()).toHaveLength(0);
   });
 
-  it("excludes a change once the user is no longer a requested reviewer", () => {
+  it("stops the review once the user is no longer a requested reviewer", () => {
     const env = setup();
     env.request(1, ["bob"]);
     env.sweep();
     env.sweep();
     expect(env.list("review")[0].status.phase).toBe("Excluded");
+    expect(env.reviewTasks()).toHaveLength(0);
   });
 
   it("holds everything while the forge throttles", () => {
@@ -229,40 +235,51 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     expect(env.reviewTasks()).toHaveLength(1);
   });
 
-  it("records a result, briefs the approve threshold, and reviews a later push anew", () => {
+  it("records each result, and reopens the concluded Task for a later push", () => {
     const env = setup({ approveAt: 4 });
     const [task] = env.reviewTasks();
+    const name = task.metadata.name;
     expect(task.spec.brief).toContain("confidence is 4 or more");
-    const generation = String(env.get("task", task.metadata.name).status.brief.generation);
-    env.ok(
-      "result",
-      task.metadata.name,
-      "--generation",
-      generation,
-      "--outcome",
-      "shipped",
-      "--summary",
-      "looks right",
-      "--output",
-      `head="${HEAD1}"`,
-      "--output",
-      "confidence=4",
-    );
+    const result = (generation: string, head: string, confidence: string) =>
+      env.ok(
+        "result",
+        name,
+        "--generation",
+        generation,
+        "--outcome",
+        "shipped",
+        "--summary",
+        "ok",
+        "--output",
+        `head="${head}"`,
+        "--output",
+        `confidence=${confidence}`,
+      );
+    const first = env.get("task", name).status.brief.generation;
+    result(String(first), HEAD1, "4");
     env.ok("reconcile");
     env.sweep();
-    const [review] = env.list("review");
+    let [review] = env.list("review");
     expect(review.status.phase).toBe("Reviewed");
     expect(review.status.reviews[0]).toMatchObject({
       head: HEAD1,
       confidence: 4,
-      outcome: "shipped",
+      generation: first,
     });
 
     env.setChange(1, "open", HEAD2);
     env.sweep();
     env.sweep();
-    const names = env.reviewTasks().map((t) => t.metadata.name);
-    expect(names.some((n) => n.endsWith(HEAD2.slice(0, 12)))).toBe(true);
+    const reopened = env.get("task", name);
+    expect(reopened.metadata.uid).toBe(task.metadata.uid);
+    expect(reopened.status.phase).not.toBe("Concluded");
+    result(String(reopened.status.brief.generation), HEAD2, "5");
+    env.ok("reconcile");
+    env.sweep();
+    [review] = env.list("review");
+    expect(review.status.phase).toBe("Reviewed");
+    expect(review.status.reviews.map((r: any) => r.head)).toEqual([HEAD2, HEAD1]);
+    expect(env.reviewTasks()).toHaveLength(1);
   });
 });
 

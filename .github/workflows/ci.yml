@@ -19,7 +19,7 @@ permissions:
 # and "PR Title"; add every new job to `all-checks.needs`.
 env:
   # The Fleet release the end-to-end tests run against.
-  FLEET_VERSION: v2.18.0
+  FLEET_VERSION: v2.19.0
 
 jobs:
   plugin:

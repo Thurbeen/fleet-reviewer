@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { brief } from "../src/brief.ts";
 import * as review from "../src/review.ts";
 import * as source from "../src/source.ts";
-import { reviewName, sourceSpec, taskName } from "../src/util.ts";
+import { reviewName, sourceSpec } from "../src/util.ts";
 
 const NOW = 1_800_000_000_000;
 const H1 = "a".repeat(40);
@@ -138,47 +138,54 @@ function listed(head = H1, extra: any = {}) {
   );
 }
 
-function task(name: string, extra: any = {}): any {
+const NAME = "rv-app-1-abcdef";
+
+function task(extra: any = {}): any {
   return {
-    metadata: { name, uid: `u-${name}`, creationTimestamp: 1 },
+    metadata: { name: NAME, uid: "u1", generation: 1, creationTimestamp: 1 },
     spec: { dispatch: false },
     status: { phase: "Pending" },
     ...extra,
   };
 }
 
+const running = () => task({ spec: { dispatch: true }, status: { phase: "Briefed" } });
+const following = (extra: any = {}) =>
+  rv({
+    phase: "Reviewing",
+    head: { sha: H1 },
+    task: { name: NAME, uid: "u1", head: H1 },
+    ...extra,
+  });
+
 function reviewPass(obj: any, observations: any) {
   return review.reconcile({ object: obj, now: NOW, observations });
 }
 
 describe("Review", () => {
-  const t1 = taskName("rv-app-1-abcdef", H1);
-
-  it("creates an undispatched Task for the head, then dispatches it under the policy", () => {
-    const plan = reviewPass(rv(), { source: { known: listed() } });
-    expect(plan.creates[0].metadata.name).toBe(t1);
+  it("creates one undispatched Task named after the Review, then dispatches it", () => {
+    const plan = reviewPass(rv(), { source: { known: listed() }, task: { known: null } });
+    expect(plan.creates[0].metadata.name).toBe(NAME);
     expect(plan.creates[0].spec.dispatch).toBe(false);
     expect(plan.status.phase).toBe("Queued");
 
-    const obj = rv(plan.status);
-    const next = reviewPass(obj, {
+    const next = reviewPass(rv(plan.status), {
       source: { known: listed() },
-      task: { known: task(t1) },
-      queue: { known: [task(t1)] },
+      task: { known: task() },
+      queue: { known: [task()] },
     });
     expect(next.patches).toEqual([
-      { kind: "Task", name: t1, uid: `u-${t1}`, spec: { dispatch: true } },
+      { kind: "Task", name: NAME, uid: "u1", spec: { dispatch: true } },
     ]);
     expect(next.status.phase).toBe("Reviewing");
   });
 
   it("waits at capacity", () => {
-    const busy = task("other", { spec: { dispatch: true }, status: { phase: "Briefed" } });
-    const obj = rv({ phase: "Queued", head: { sha: H1 }, task: { name: t1, head: H1, told: [] } });
-    const plan = reviewPass(obj, {
+    const busy = { ...running(), metadata: { name: "other", uid: "o" } };
+    const plan = reviewPass(rv({ phase: "Queued", task: { name: NAME, head: H1 } }), {
       source: { known: listed() },
-      task: { known: task(t1) },
-      queue: { known: [busy, busy, task(t1)] },
+      task: { known: task() },
+      queue: { known: [busy, busy, task()] },
     });
     expect(plan.patches).toBeUndefined();
     expect(plan.status.conditions.find((c: any) => c.type === "Dispatched").reason).toBe(
@@ -186,105 +193,131 @@ describe("Review", () => {
     );
   });
 
-  it("tells a dispatched Task about a push once", () => {
-    const obj = rv({
-      phase: "Reviewing",
-      head: { sha: H1 },
-      task: { name: t1, uid: `u-${t1}`, head: H1, told: [] },
-    });
-    const running = task(t1, { spec: { dispatch: true }, status: { phase: "Briefed" } });
-    const plan = reviewPass(obj, { source: { known: listed(H2) }, task: { known: running } });
-    expect(plan.appends[0].key).toBe(`head/${H2}`);
-    expect(plan.creates).toBeUndefined();
-    const again = reviewPass(rv(plan.status), {
+  it("amends the same Task once per push, fenced on its generation", () => {
+    const plan = reviewPass(following(), {
       source: { known: listed(H2) },
-      task: { known: running },
+      task: { known: running() },
     });
-    expect(again.appends).toBeUndefined();
-  });
-
-  it("replaces an undispatched Task for an older head", () => {
-    const obj = rv({
-      phase: "Queued",
-      head: { sha: H1 },
-      task: { name: t1, uid: `u-${t1}`, head: H1, told: [] },
-    });
-    const plan = reviewPass(obj, { source: { known: listed(H2) }, task: { known: task(t1) } });
-    expect(plan.deletes).toEqual([{ kind: "Task", name: t1, uid: `u-${t1}` }]);
-    expect(plan.creates[0].metadata.name).toBe(taskName("rv-app-1-abcdef", H2));
-  });
-
-  it("records a result and marks the head reviewed", () => {
-    const obj = rv({
-      phase: "Reviewing",
-      head: { sha: H1 },
-      task: { name: t1, uid: `u-${t1}`, head: H1, told: [] },
-    });
-    const done = task(t1, {
-      spec: { dispatch: true },
-      status: {
-        phase: "Concluded",
-        result: { outcome: "shipped", outputs: { head: H1, confidence: 4, findings: 0 } },
+    expect(plan.creates).toBeUndefined();
+    expect(plan.amends).toEqual([
+      {
+        task: NAME,
+        uid: "u1",
+        text: review.amendText(H2),
+        reason: "the change's head moved",
+        ifGeneration: 1,
       },
-    });
-    const plan = reviewPass(obj, { source: { known: listed() }, task: { known: done } });
+    ]);
+    // The amendment landed: the store holds it, so a later pass, even with a lost status, sends nothing.
+    const amended = running();
+    amended.metadata.generation = 2;
+    amended.spec.amendments = [{ text: review.amendText(H2), generation: 2 }];
+    for (const obj of [following(), rv()]) {
+      const again = reviewPass(obj, { source: { known: listed(H2) }, task: { known: amended } });
+      expect(again.amends).toBeUndefined();
+      expect(again.creates).toBeUndefined();
+    }
+  });
+
+  it("amends a concluded Task, which reopens it", () => {
+    const done = running();
+    done.status = {
+      phase: "Concluded",
+      result: { outcome: "shipped", generation: 1, outputs: { head: H1, confidence: 4 } },
+    };
+    const plan = reviewPass(following(), { source: { known: listed(H2) }, task: { known: done } });
+    expect(plan.amends[0].text).toContain(H2);
+    expect(plan.status.reviews[0]).toMatchObject({ head: H1, generation: 1, confidence: 4 });
+  });
+
+  it("records each result once, per generation", () => {
+    const done = running();
+    done.status = {
+      phase: "Concluded",
+      result: { outcome: "shipped", generation: 1, outputs: { head: H1, confidence: 4 } },
+    };
+    const plan = reviewPass(following(), { source: { known: listed() }, task: { known: done } });
     expect(plan.status.phase).toBe("Reviewed");
-    expect(plan.status.reviews[0]).toMatchObject({ head: H1, confidence: 4 });
-    expect(plan.status.retiring[0]).toMatchObject({ name: t1, after: NOW + 3_600_000 });
+    const again = reviewPass(following({ reviews: plan.status.reviews }), {
+      source: { known: listed() },
+      task: { known: done },
+    });
+    expect(again.status.reviews).toHaveLength(1);
+  });
+
+  it("flags a result for a head the Task was never asked about", () => {
+    const done = running();
+    done.status = {
+      phase: "Concluded",
+      result: { outcome: "shipped", generation: 1, outputs: { head: H2 } },
+    };
+    const plan = reviewPass(following(), { source: { known: listed() }, task: { known: done } });
+    expect(plan.status.conditions.find((c: any) => c.type === "NeedsAttention").reason).toBe(
+      "UnexpectedHead",
+    );
+    expect(plan.status.phase).toBe("Reviewing");
   });
 
   it("does nothing on an Unknown source or task", () => {
-    const obj = rv({ phase: "Reviewing", task: { name: t1, head: H1 } });
-    expect(reviewPass(obj, { source: { unknown: { why: "x" } } })).toEqual({
+    expect(
+      reviewPass(following(), { source: { unknown: { why: "x" } }, task: { known: null } }),
+    ).toEqual({
       notBefore: NOW + 300_000,
     });
     expect(
-      reviewPass(obj, { source: { known: listed() }, task: { unknown: { why: "x" } } }).creates,
-    ).toBeUndefined();
+      reviewPass(following(), { source: { known: listed() }, task: { unknown: { why: "x" } } }),
+    ).toEqual({
+      notBefore: NOW + 300_000,
+    });
   });
 
-  it("settles a merged change and keeps a dispatched Task", () => {
-    const obj = rv({
-      phase: "Reviewing",
-      head: { sha: H1 },
-      task: { name: t1, uid: `u-${t1}`, head: H1, told: [] },
-    });
+  it("deletes the Task when the change merges or the user is unrequested", () => {
     const gone = src({}, { repositories: { [P]: { listedAt: NOW - 1000 } }, changes: {} });
-    const running = task(t1, { spec: { dispatch: true }, status: { phase: "Briefed" } });
-    const plan = reviewPass(obj, {
+    const merged = reviewPass(following(), {
       source: { known: gone },
-      task: { known: running },
+      task: { known: running() },
       change: { known: { state: "merged" } },
     });
-    expect(plan.status.phase).toBe("Settled");
-    expect(plan.deletes).toBeUndefined();
+    expect(merged.status.phase).toBe("Settled");
+    expect(merged.deletes).toEqual([{ kind: "Task", name: NAME, uid: "u1" }]);
+
+    const excluded = reviewPass(following(), {
+      source: { known: listed(H1, { verdict: "excluded", reason: "requestedReviewer" }) },
+      task: { known: running() },
+    });
+    expect(excluded.status.phase).toBe("Excluded");
+    expect(excluded.deletes).toEqual([{ kind: "Task", name: NAME, uid: "u1" }]);
   });
 
   it("retires when the source no longer covers the project, then lets go", () => {
-    const obj = rv({ phase: "Reviewing", task: { name: t1, uid: `u-${t1}`, head: H1 } });
     const narrowed = src({ repositories: [{ project: "OWNER/other" }] });
-    const running = task(t1, { spec: { dispatch: true }, status: { phase: "Briefed" } });
-    const plan = reviewPass(obj, { source: { known: narrowed }, task: { known: running } });
-    expect(plan.status.phase).toBe("Retiring");
-    expect(plan.deletes).toEqual([{ kind: "Task", name: t1, uid: `u-${t1}` }]);
-    const last = reviewPass(rv(plan.status), {
+    const plan = reviewPass(following(), {
       source: { known: narrowed },
-      [`retiring/${t1}`]: { known: null },
+      task: { known: running() },
     });
-    expect(last).toEqual({ delete: true });
+    expect(plan.status.phase).toBe("Retiring");
+    expect(plan.deletes).toEqual([{ kind: "Task", name: NAME, uid: "u1" }]);
+    expect(
+      reviewPass(rv(plan.status), { source: { known: narrowed }, task: { known: null } }),
+    ).toEqual({
+      delete: true,
+    });
   });
 
-  it("does not recreate a head whose Task a person deleted", () => {
-    const obj = rv({
-      phase: "Reviewing",
-      head: { sha: H1 },
-      task: { name: t1, uid: `u-${t1}`, head: H1, told: [] },
-    });
-    const plan = reviewPass(obj, { source: { known: listed() }, task: { known: null } });
+  it("does not recreate a head whose Task a person deleted, but starts again on a push", () => {
+    const plan = reviewPass(following(), { source: { known: listed() }, task: { known: null } });
     expect(plan.status.cancelled).toEqual([H1]);
-    const next = reviewPass(rv(plan.status), { source: { known: listed() } });
-    expect(next.creates).toBeUndefined();
-    expect(next.status.phase).toBe("Reviewed");
+    expect(plan.creates).toBeUndefined();
+    const same = reviewPass(rv(plan.status), {
+      source: { known: listed() },
+      task: { known: null },
+    });
+    expect(same.creates).toBeUndefined();
+    const pushed = reviewPass(rv(plan.status), {
+      source: { known: listed(H2) },
+      task: { known: null },
+    });
+    expect(pushed.creates[0].metadata.name).toBe(NAME);
   });
 });
 

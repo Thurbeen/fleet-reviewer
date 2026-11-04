@@ -25,11 +25,6 @@ export function reviewName(host: string, project: string, number: number): strin
   return `rv-${repo || "repo"}-${number}-${hash.slice(0, 6)}`;
 }
 
-/** `<review name>-<first 12 hex digits of the head>`. */
-export function taskName(review: string, head: string): string {
-  return `${review}-${head.slice(0, 12).toLowerCase()}`;
-}
-
 export function changeKey(project: string, number: number): string {
   return `${project}!${number}`;
 }
@@ -88,7 +83,6 @@ export function sourceSpec(spec: J) {
     suspend: spec?.suspend ?? false,
     pollMs: Math.max(spec?.pollMs ?? 300_000, MINUTE),
     retention: {
-      taskMs: retention.taskMs ?? HOUR,
       reviewMs: retention.reviewMs ?? 7 * DAY,
     },
   };
