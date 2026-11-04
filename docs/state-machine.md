@@ -8,7 +8,7 @@ pass. The [interface](interface.md) defines the probes and the plans.
 stateDiagram-v2
   [*] --> Queued: included change, one Task created
   Queued --> Reviewing: dispatched
-  Reviewing --> Reviewed: result for the current head
+  Reviewing --> Reviewed: shipped result for the current head
   Reviewed --> Reviewing: push, the Task is amended
   Reviewing --> Reviewing: push, the Task is amended
   Queued --> Excluded: a filter excludes it, Task deleted
@@ -45,8 +45,8 @@ one that is no longer listed.
 | Phase | Meaning |
 | --- | --- |
 | `Queued` | The Task exists and is not dispatched. |
-| `Reviewing` | The Task is dispatched, and the current head has no result yet. |
-| `Reviewed` | The current head has a recorded result. |
+| `Reviewing` | The Task is dispatched, and the current head has no `shipped` result. |
+| `Reviewed` | The current head has a recorded `shipped` result. |
 | `Excluded` | The source lists the change, and a filter excludes it. |
 | `Settled` | The forge says the change is merged or closed. |
 | `Retiring` | The `Review` deletes its Task, then itself. |
@@ -70,12 +70,13 @@ Then the rules are checked in order. The first rule that matches decides the pas
 | 10 | The listing excludes the change. | `Excluded` | Delete the Task, running or not. An unrequested reviewer stops the review. |
 | 11 | The `Review` recorded a Task `uid`, and `task` is `known: null`. | `Reviewed` | Add the Task's head to `cancelled`. A person deleted it. A later push creates a new Task. |
 | 12 | The Task is Stalled, or raises `NeedsAttention`. | unchanged | Raise `NeedsAttention` naming the Task's reason. A person decides. |
-| 13 | No Task, and the current head has no result and is not `cancelled`. | `Queued` | Create the Task for the current head, `dispatch: false`. |
-| 14 | The Task was never asked about the current head. | unchanged until rule 15 to 18 | Amend the Task with the new head, `ifGeneration` set to the Task's generation. See [A new push](review-task.md#a-new-push). |
+| 13 | No Task, and the current head has no `shipped` result and is not `cancelled`. | `Queued` | Create the Task for the current head, `dispatch: false`. |
+| 14 | The Task was never asked about the current head. | unchanged until rule 15 to 19 | Amend the Task with the new head, `ifGeneration` set to the Task's generation. See [A new push](review-task.md#a-new-push). |
 | 15 | The Task is not dispatched, `dispatch.by: policy`, and the Task is first in the [queue](review-task.md#dispatch). | `Reviewing` | Patch the Task's `dispatch` to `true`. |
 | 16 | The Task is not dispatched. | `Queued` | Nothing more. Set `Dispatched=False` with the reason: `AwaitingPerson` or `AtCapacity`. |
-| 17 | The current head has a result, and no amendment was planned. | `Reviewed` | Nothing. |
-| 18 | Otherwise. | `Reviewing` | Nothing. |
+| 17 | The current head has a `shipped` result, and no amendment was planned. | `Reviewed` | Nothing. |
+| 18 | The latest result for the current head is not `shipped`, and no amendment was planned. | `Reviewing` | Raise `NeedsAttention/ResultNotShipped` naming the Task and the outcome. A person decides. |
+| 19 | Otherwise. | `Reviewing` | Nothing. |
 
 A head the Task "was asked about" is the head of its brief, or a head named in one of its
 amendments. The plugin reads both from the stored Task, so a lost status never sends an
@@ -151,9 +152,9 @@ source's status.
 
 | Kind | Type | Status when |
 | --- | --- | --- |
-| `Review` | `Reviewed` | `True` when the current head has a result. |
+| `Review` | `Reviewed` | `True` when the current head has a `shipped` result. |
 | `Review` | `Dispatched` | `False/AwaitingPerson`, `False/AtCapacity`, `False/Suspended`, `True`. |
-| `Review` | `NeedsAttention` | The Task stalled, a plan was refused (`host.error`), or a verb was refused (`host.verbs`). |
+| `Review` | `NeedsAttention` | The Task stalled, the latest result for the current head is not `shipped`, a plan was refused (`host.error`), or a verb was refused (`host.verbs`). |
 | `ReviewSource` | `Listed` | `True/Complete` when every repository answered Known on its last listing. |
 | `ReviewSource` | `Throttled` | `True` while `throttle.until` is in the future. |
 | `ReviewSource` | `Overlap` | `True` when another source owns one of this source's changes. |

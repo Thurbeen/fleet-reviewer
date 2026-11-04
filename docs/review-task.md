@@ -186,6 +186,7 @@ publishes on a Task: `metadata.generation`, `spec.dispatch`, `spec.amendments`,
 | Pending, Spawning, Spawned or Briefed with `dispatch: true` | `Dispatched=True`; `task.dispatched` with `by: person` when the plugin did not patch it. |
 | A result for a generation not yet recorded | An entry in `reviews`: head, generation, outcome, outputs, time. The Task stays. |
 | Stalled, or `NeedsAttention` | `NeedsAttention`, naming the Task and its reason. |
+| A latest result for the current head that is not `shipped` | `NeedsAttention/ResultNotShipped`, naming the Task and the outcome. The head is not marked as reviewed. |
 | `known: null` | The Task is gone. If the plugin did not delete it, its head joins `cancelled`. |
 | Unknown | Nothing changes. |
 
