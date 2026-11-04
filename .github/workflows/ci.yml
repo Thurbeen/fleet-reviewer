@@ -54,7 +54,7 @@ jobs:
       - run: pnpm fmt:check
       - run: pnpm test
         env:
-          FLEET_E2E_REQUIRED: "1"
+          FLEET_E2E_REQUIRED: '1'
       - name: The plugin runs without a build or a dependency
         run: |
           echo '{"protocol":1,"plugin":"fleet-reviewer","id":"m"}' \

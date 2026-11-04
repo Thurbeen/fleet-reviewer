@@ -36,5 +36,5 @@ repository = "fleet-reviewer"
 owner = "Thurbeen"
 
 authors = [
-    { signature = "LeTuR", username = "magicletur" },
+    { signature = "LeTuR", username = "LeTuR" },
 ]

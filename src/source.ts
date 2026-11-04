@@ -14,7 +14,7 @@ import {
   known,
   reviewName,
   sourceSpec,
-} from "./util.ts";
+} from './util.ts';
 
 const LIST_MAX_CALLS = 3;
 const MAX_CREATES = 20;
@@ -51,7 +51,7 @@ function hostBudget(obs: J, me: J, spec: SourceSpec): number {
 /** Calls the forge answers in this pass cost so far. */
 function usedThisPass(obs: J): number {
   return Object.entries(obs ?? {})
-    .filter(([id]) => id === "whoami" || id.startsWith("list/") || id.startsWith("headAt/"))
+    .filter(([id]) => id === 'whoami' || id.startsWith('list/') || id.startsWith('headAt/'))
     .reduce((n, [, o]) => n + Number((o as J)?.known?.calls ?? 1), 0);
 }
 
@@ -67,8 +67,8 @@ export function probes(req: J): J[] {
   const name = me.metadata.name;
   const spec = sourceSpec(me.spec);
   const out: J[] = [];
-  if (!("sources" in obs)) out.push({ id: "sources", type: "list", kind: "ReviewSource" });
-  if (!("reviews" in obs)) out.push({ id: "reviews", type: "list", kind: "Review" });
+  if (!('sources' in obs)) out.push({ id: 'sources', type: 'list', kind: 'ReviewSource' });
+  if (!('reviews' in obs)) out.push({ id: 'reviews', type: 'list', kind: 'Review' });
   if (out.length) return out;
   if (!known(obs.sources).ok || !known(obs.reviews).ok) return [];
   if (invalid(spec) || spec.suspend || throttleUntil(obs, me, spec) > now) return [];
@@ -79,8 +79,8 @@ export function probes(req: J): J[] {
   const forge = forgeRequest(spec);
 
   const accountFresh = st.account?.login && now - Number(st.account.checkedAt ?? 0) < DAY;
-  if (!accountFresh && !("whoami" in obs) && remaining >= 1) {
-    out.push({ id: "whoami", type: "plugin", request: { op: "whoami", forge } });
+  if (!accountFresh && !('whoami' in obs) && remaining >= 1) {
+    out.push({ id: 'whoami', type: 'plugin', request: { op: 'whoami', forge } });
     remaining -= 1;
   }
   const repos = [...spec.repositories].sort(
@@ -94,13 +94,13 @@ export function probes(req: J): J[] {
     const maxCalls = Math.min(LIST_MAX_CALLS, remaining);
     out.push({
       id,
-      type: "plugin",
-      request: { op: "listChanges", forge, project: r.project, maxCalls, name },
+      type: 'plugin',
+      request: { op: 'listChanges', forge, project: r.project, maxCalls, name },
     });
     remaining -= maxCalls;
   }
   // GitLab lists no commit dates: read each new head's date once.
-  if (spec.forge.kind === "gitlab") {
+  if (spec.forge.kind === 'gitlab') {
     for (const r of spec.repositories as J[]) {
       const listed = known(obs[`list/${r.project}`]);
       if (!listed.ok) continue;
@@ -113,8 +113,8 @@ export function probes(req: J): J[] {
         }
         out.push({
           id,
-          type: "plugin",
-          request: { op: "readHeadDate", forge, project: r.project, head: c.head },
+          type: 'plugin',
+          request: { op: 'readHeadDate', forge, project: r.project, head: c.head },
         });
         remaining -= 1;
       }
@@ -124,11 +124,11 @@ export function probes(req: J): J[] {
 }
 
 function invalid(spec: SourceSpec): string | null {
-  if (spec.review.page === "snapshot" && spec.review.output !== "post") {
-    return "review.page snapshot requires review.output post";
+  if (spec.review.page === 'snapshot' && spec.review.output !== 'post') {
+    return 'review.page snapshot requires review.output post';
   }
-  if (spec.review.page === "snapshot" && spec.review.template !== "thurview") {
-    return "review.page snapshot requires review.template thurview";
+  if (spec.review.page === 'snapshot' && spec.review.template !== 'thurview') {
+    return 'review.page snapshot requires review.template thurview';
   }
   return null;
 }
@@ -142,31 +142,31 @@ export function verdict(
   now: number,
 ): string | null {
   const f = spec.filters;
-  const author = String(e.author?.login ?? "");
+  const author = String(e.author?.login ?? '');
   const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const repo = spec.repositories.find((r) => r.project === e.project);
-  if (e.draft && !f.drafts) return "drafts";
-  if (e.author?.kind === "bot" && !f.bots) return "bots";
-  if (e.author?.kind === "deleted" && !f.deletedAuthors) return "deletedAuthors";
+  if (e.draft && !f.drafts) return 'drafts';
+  if (e.author?.kind === 'bot' && !f.bots) return 'bots';
+  if (e.author?.kind === 'deleted' && !f.deletedAuthors) return 'deletedAuthors';
   if (!f.ownChanges) {
-    if (!login) return "accountUnknown";
-    if (eq(author, login)) return "ownChanges";
+    if (!login) return 'accountUnknown';
+    if (eq(author, login)) return 'ownChanges';
   }
-  if (!e.headAt) return "headAtUnknown";
-  if (now - Number(e.headAt) > f.staleAfterDays * DAY) return "staleAfterDays";
-  if (f.excludeAuthors.some((a) => eq(a, author))) return "excludeAuthors";
-  if (f.onlyAuthors && !f.onlyAuthors.some((a) => eq(a, author))) return "onlyAuthors";
+  if (!e.headAt) return 'headAtUnknown';
+  if (now - Number(e.headAt) > f.staleAfterDays * DAY) return 'staleAfterDays';
+  if (f.excludeAuthors.some((a) => eq(a, author))) return 'excludeAuthors';
+  if (f.onlyAuthors && !f.onlyAuthors.some((a) => eq(a, author))) return 'onlyAuthors';
   const labels: string[] = e.labels ?? [];
-  if (f.requireLabels.some((l) => !labels.includes(l))) return "requireLabels";
-  if (f.excludeLabels.some((l) => labels.includes(l))) return "excludeLabels";
-  if (repo?.targetBranches && !repo.targetBranches.includes(e.base)) return "targetBranches";
+  if (f.requireLabels.some((l) => !labels.includes(l))) return 'requireLabels';
+  if (f.excludeLabels.some((l) => labels.includes(l))) return 'excludeLabels';
+  if (repo?.targetBranches && !repo.targetBranches.includes(e.base)) return 'targetBranches';
   if (f.requestedReviewer) {
     const who = f.requestedReviewer;
     const requested = (e.requested ?? []).some((r: string) => eq(r, who));
     // GitHub drops a reviewer from the request once they review: a change
     // already followed stays followed while the reviewer has reviewed it.
     const reviewed = hasReview && (e.reviewedBy ?? []).some((r: string) => eq(r, who));
-    if (!requested && !reviewed) return "requestedReviewer";
+    if (!requested && !reviewed) return 'requestedReviewer';
   }
   return null;
 }
@@ -180,7 +180,7 @@ export function reconcile(req: J): J {
   const old = me.status ?? {};
   const oldConds: J[] = old.conditions ?? [];
   const base = {
-    phase: "Listing",
+    phase: 'Listing',
     observedGeneration: me.metadata.generation,
     account: old.account ?? null,
     repositories: old.repositories ?? {},
@@ -189,28 +189,28 @@ export function reconcile(req: J): J {
     throttle: old.throttle ?? null,
   };
   const attention = (reason: string, message: string) =>
-    condition(oldConds, "NeedsAttention", "True", reason, message, now);
-  const quiet = () => condition(oldConds, "NeedsAttention", "False", "None", "", now);
+    condition(oldConds, 'NeedsAttention', 'True', reason, message, now);
+  const quiet = () => condition(oldConds, 'NeedsAttention', 'False', 'None', '', now);
 
   const bad = invalid(spec);
   if (bad) {
     return {
-      status: { ...base, conditions: [attention("InvalidSpec", bad)] },
+      status: { ...base, conditions: [attention('InvalidSpec', bad)] },
       notBefore: now + spec.pollMs,
     };
   }
   const sources = known(obs.sources);
   const reviews = known(obs.reviews);
   if (!sources.ok || !reviews.ok) {
-    const why = !sources.ok ? sources.why : !reviews.ok ? reviews.why : "";
+    const why = !sources.ok ? sources.why : !reviews.ok ? reviews.why : '';
     return {
-      status: { ...base, conditions: [attention("StoreUnknown", why)] },
+      status: { ...base, conditions: [attention('StoreUnknown', why)] },
       notBefore: now + spec.pollMs,
     };
   }
   if (spec.suspend) {
     return {
-      status: { ...base, phase: "Suspended", conditions: oldConds },
+      status: { ...base, phase: 'Suspended', conditions: oldConds },
       notBefore: now + spec.pollMs,
     };
   }
@@ -219,9 +219,9 @@ export function reconcile(req: J): J {
     return {
       status: {
         ...base,
-        phase: "Throttled",
+        phase: 'Throttled',
         conditions: [
-          condition(oldConds, "Throttled", "True", "RateLimited", `until ${until}`, now),
+          condition(oldConds, 'Throttled', 'True', 'RateLimited', `until ${until}`, now),
         ],
       },
       notBefore: until,
@@ -239,15 +239,15 @@ export function reconcile(req: J): J {
   let anyKnown = false;
   let throttled: J = null;
   for (const [id, o] of Object.entries(obs)) {
-    if (!(id === "whoami" || id.startsWith("list/") || id.startsWith("headAt/"))) continue;
+    if (!(id === 'whoami' || id.startsWith('list/') || id.startsWith('headAt/'))) continue;
     const ans = o as J;
-    if (ans && "known" in ans) anyKnown = true;
-    else if (ans?.unknown?.why === "Throttled") throttled = ans.unknown;
+    if (ans && 'known' in ans) anyKnown = true;
+    else if (ans?.unknown?.why === 'Throttled') throttled = ans.unknown;
   }
   if (throttled) {
     const streak = Number(old.throttle?.streak ?? 0);
     const wait = Math.min(HOUR, Number(throttled.retryAfterMs ?? 60_000) * 2 ** streak);
-    throttle = { until: now + wait, streak: streak + 1, why: "Throttled" };
+    throttle = { until: now + wait, streak: streak + 1, why: 'Throttled' };
   } else if (anyKnown) {
     throttle = null;
   }
@@ -285,7 +285,7 @@ export function reconcile(req: J): J {
       }
     } else {
       repositories[r.project] = ans
-        ? { ...prev, unknown: { why: String(ans?.unknown?.why ?? "Unknown"), at: now } }
+        ? { ...prev, unknown: { why: String(ans?.unknown?.why ?? 'Unknown'), at: now } }
         : prev;
       if (!prev.listedAt || ans) complete = false;
     }
@@ -303,7 +303,7 @@ export function reconcile(req: J): J {
     const rname = reviewName(spec.forge.host, e.project, Number(e.number));
     const existing = byName.get(rname);
     const v = verdict(spec, e, account?.login, !!existing, now);
-    e.verdict = v ? "excluded" : "included";
+    e.verdict = v ? 'excluded' : 'included';
     if (v) e.reason = v;
     else delete e.reason;
     e.review = existing || !v ? rname : null;
@@ -319,8 +319,8 @@ export function reconcile(req: J): J {
         continue;
       }
       creates.push({
-        apiVersion: "fleet/v1alpha1",
-        kind: "Review",
+        apiVersion: 'fleet/v1alpha1',
+        kind: 'Review',
         metadata: { name: rname, labels: { [LABEL_SOURCE]: name } },
         spec: {
           source: name,
@@ -336,38 +336,38 @@ export function reconcile(req: J): J {
   const kept: J = {};
   for (const key of keys.slice(0, MAX_ENTRIES)) kept[key] = changes[key];
 
-  const included = keys.filter((k) => changes[k].verdict === "included").length;
+  const included = keys.filter((k) => changes[k].verdict === 'included').length;
   const conditions = [
     condition(
       oldConds,
-      "Listed",
-      complete ? "True" : "False",
-      complete ? "Complete" : "Incomplete",
+      'Listed',
+      complete ? 'True' : 'False',
+      complete ? 'Complete' : 'Incomplete',
       `${included} included, ${keys.length - included} excluded`,
       now,
     ),
     condition(
       oldConds,
-      "Throttled",
-      throttle && throttle.until > now ? "True" : "False",
-      throttle ? "RateLimited" : "None",
-      "",
+      'Throttled',
+      throttle && throttle.until > now ? 'True' : 'False',
+      throttle ? 'RateLimited' : 'None',
+      '',
       now,
     ),
     condition(
       oldConds,
-      "Overlap",
-      overlap.length ? "True" : "False",
-      overlap.length ? "OtherSource" : "None",
-      overlap.join(", "),
+      'Overlap',
+      overlap.length ? 'True' : 'False',
+      overlap.length ? 'OtherSource' : 'None',
+      overlap.join(', '),
       now,
     ),
-    tooMany ? attention("TooMany", `${keys.length} changes, more than ${MAX_ENTRIES}`) : quiet(),
+    tooMany ? attention('TooMany', `${keys.length} changes, more than ${MAX_ENTRIES}`) : quiet(),
   ];
   const plan: J = {
     status: {
       ...base,
-      phase: throttle && throttle.until > now ? "Throttled" : "Listing",
+      phase: throttle && throttle.until > now ? 'Throttled' : 'Listing',
       account,
       repositories,
       changes: kept,

@@ -1,13 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "security:openssf-scorecard", "mergeConfidence:all-badges"],
   "labels": ["dependencies"],
   "automerge": true,
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict",
   "osvVulnerabilityAlerts": true,
   "semanticCommits": "enabled",
-  "semanticCommitType": "chore",
+  "semanticCommitType": "fix",
   "semanticCommitScope": "deps",
   "pre-commit": {
     "enabled": true

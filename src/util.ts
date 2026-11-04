@@ -1,13 +1,13 @@
 // Shared, pure helpers: names, conditions, defaults. No I/O.
 
-import { createHash } from "node:crypto";
+import { createHash } from 'node:crypto';
 
 // Fleet's objects and requests are JSON whose shape the schemas own.
 export type J = any;
 
-export const PLUGIN = "fleet-reviewer";
-export const LABEL_SOURCE = "fleet-reviewer/source";
-export const LABEL_REVIEW = "fleet-reviewer/review";
+export const PLUGIN = 'fleet-reviewer';
+export const LABEL_SOURCE = 'fleet-reviewer/source';
+export const LABEL_REVIEW = 'fleet-reviewer/review';
 
 export const MINUTE = 60_000;
 export const HOUR = 3_600_000;
@@ -15,14 +15,14 @@ export const DAY = 86_400_000;
 
 /** `rv-<repo>-<number>-<hash>`, from facts, so a repeated pass creates nothing twice. */
 export function reviewName(host: string, project: string, number: number): string {
-  const last = project.split("/").pop() ?? "repo";
+  const last = project.split('/').pop() ?? 'repo';
   const repo = last
     .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/[^a-z0-9-]/g, '-')
     .slice(0, 40)
-    .replace(/^-+|-+$/g, "");
-  const hash = createHash("sha256").update(`${host}/${project}!${number}`).digest("hex");
-  return `rv-${repo || "repo"}-${number}-${hash.slice(0, 6)}`;
+    .replace(/^-+|-+$/g, '');
+  const hash = createHash('sha256').update(`${host}/${project}!${number}`).digest('hex');
+  return `rv-${repo || 'repo'}-${number}-${hash.slice(0, 6)}`;
 }
 
 export function changeKey(project: string, number: number): string {
@@ -31,7 +31,7 @@ export function changeKey(project: string, number: number): string {
 
 /** Heads match when one is a prefix of the other (a short SHA against a full one). */
 export function sameHead(a: unknown, b: unknown): boolean {
-  if (typeof a !== "string" || typeof b !== "string" || !a || !b) return false;
+  if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return false;
   const n = Math.min(a.length, b.length);
   return n >= 7 ? a.slice(0, n) === b.slice(0, n) : a === b;
 }
@@ -45,10 +45,10 @@ export function sourceSpec(spec: J) {
   const retention = spec?.retention ?? {};
   return {
     forge: {
-      kind: String(forge.kind ?? ""),
-      host: String(forge.host ?? "").toLowerCase(),
+      kind: String(forge.kind ?? ''),
+      host: String(forge.host ?? '').toLowerCase(),
       apiUrl: forge.apiUrl ?? defaultApiUrl(forge.kind, forge.host),
-      tokenEnv: String(forge.tokenEnv ?? ""),
+      tokenEnv: String(forge.tokenEnv ?? ''),
       maxCallsPerMinute: forge.maxCallsPerMinute ?? 30,
     },
     repositories: ((spec?.repositories ?? []) as J[]).map((r: J) => ({
@@ -66,18 +66,18 @@ export function sourceSpec(spec: J) {
       excludeAuthors: (filters.excludeAuthors ?? []) as string[],
       onlyAuthors: filters.onlyAuthors as string[] | undefined,
       requireLabels: (filters.requireLabels ?? []) as string[],
-      excludeLabels: (filters.excludeLabels ?? ["review:stop"]) as string[],
+      excludeLabels: (filters.excludeLabels ?? ['review:stop']) as string[],
     },
     review: {
-      taskConfig: String(review.taskConfig ?? ""),
-      template: (review.template ?? "generic") as "generic" | "thurview",
-      output: (review.output ?? "post") as "post" | "report",
-      page: (review.page ?? "none") as "none" | "snapshot",
+      taskConfig: String(review.taskConfig ?? ''),
+      template: (review.template ?? 'generic') as 'generic' | 'thurview',
+      output: (review.output ?? 'post') as 'post' | 'report',
+      page: (review.page ?? 'none') as 'none' | 'snapshot',
       approveAt: review.approveAt as number | undefined,
       guidance: review.guidance as string | undefined,
     },
     dispatch: {
-      by: (dispatch.by ?? "policy") as "policy" | "person",
+      by: (dispatch.by ?? 'policy') as 'policy' | 'person',
       maxActive: dispatch.maxActive ?? 2,
     },
     suspend: spec?.suspend ?? false,
@@ -90,8 +90,8 @@ export function sourceSpec(spec: J) {
 export type SourceSpec = ReturnType<typeof sourceSpec>;
 
 export function defaultApiUrl(kind: string, host: string): string {
-  if (kind === "github")
-    return host === "github.com" ? "https://api.github.com" : `https://${host}/api/v3`;
+  if (kind === 'github')
+    return host === 'github.com' ? 'https://api.github.com' : `https://${host}/api/v3`;
   return `https://${host}/api/v4`;
 }
 
@@ -104,7 +104,7 @@ export function hostKey(spec: SourceSpec): string {
 export function condition(
   old: J[] | undefined,
   type: string,
-  status: "True" | "False" | "Unknown",
+  status: 'True' | 'False' | 'Unknown',
   reason: string,
   message: string,
   now: number,
@@ -115,6 +115,6 @@ export function condition(
 }
 
 export function known(obs: J): { ok: true; value: J } | { ok: false; why: string } {
-  if (obs && typeof obs === "object" && "known" in obs) return { ok: true, value: obs.known };
-  return { ok: false, why: String(obs?.unknown?.why ?? "not asked") };
+  if (obs && typeof obs === 'object' && 'known' in obs) return { ok: true, value: obs.known };
+  return { ok: false, why: String(obs?.unknown?.why ?? 'not asked') };
 }

@@ -3,57 +3,57 @@
 // Fleet's own fake-forge file. FLEET_BIN names the binary; CI downloads the
 // pinned release. Each test has its own store, forge directory and HOME.
 
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 const FLEET = process.env.FLEET_BIN;
-const PLUGIN = resolve(import.meta.dirname, "../src/plugin.ts");
-const HEAD1 = "1".repeat(40);
-const HEAD2 = "2".repeat(40);
-const PROJECT = "example/project";
-const LABEL_SOURCE = "fleet-reviewer/source";
+const PLUGIN = resolve(import.meta.dirname, '../src/plugin.ts');
+const HEAD1 = '1'.repeat(40);
+const HEAD2 = '2'.repeat(40);
+const PROJECT = 'example/project';
+const LABEL_SOURCE = 'fleet-reviewer/source';
 
 if (!FLEET && process.env.FLEET_E2E_REQUIRED) {
-  throw new Error("FLEET_E2E_REQUIRED is set but FLEET_BIN is not");
+  throw new Error('FLEET_E2E_REQUIRED is set but FLEET_BIN is not');
 }
 
 class Env {
-  root = mkdtempSync(join(tmpdir(), "fleet-reviewer-e2e-"));
-  config = join(this.root, "fleet.toml");
-  forge = join(this.root, "forge");
+  root = mkdtempSync(join(tmpdir(), 'fleet-reviewer-e2e-'));
+  config = join(this.root, 'fleet.toml');
+  forge = join(this.root, 'forge');
 
   constructor() {
     mkdirSync(this.forge);
     writeFileSync(
       this.config,
       [
-        "version = 1",
-        "[data]",
+        'version = 1',
+        '[data]',
         'dir = "data"',
-        "[runtime]",
+        '[runtime]',
         'kind = "fake"',
         'dir = "fake"',
-        "[plugins.fleet-reviewer]",
+        '[plugins.fleet-reviewer]',
         `program = '${process.execPath}'`,
         `args = ['${PLUGIN}']`,
         `cwd = '${this.root}'`,
-        "callTimeoutMs = 10000",
+        'callTimeoutMs = 10000',
         'tasks = "own"',
         "passEnv = ['FLEET_REVIEWER_FAKE_DIR']",
-        "",
-      ].join("\n"),
+        '',
+      ].join('\n'),
     );
-    this.forgeFile("reviewers.json", { requested: {} });
+    this.forgeFile('reviewers.json', { requested: {} });
   }
 
   fleet(...args: string[]): { code: number; out: string; err: string } {
-    const r = spawnSync(FLEET!, ["--config", this.config, ...args], {
+    const r = spawnSync(FLEET!, ['--config', this.config, ...args], {
       cwd: this.root,
-      env: { PATH: process.env.PATH ?? "", HOME: this.root, FLEET_REVIEWER_FAKE_DIR: this.forge },
-      encoding: "utf8",
+      env: { PATH: process.env.PATH ?? '', HOME: this.root, FLEET_REVIEWER_FAKE_DIR: this.forge },
+      encoding: 'utf8',
       timeout: 60_000,
     });
     return { code: r.status ?? -1, out: r.stdout, err: r.stderr };
@@ -61,29 +61,29 @@ class Env {
 
   ok(...args: string[]): string {
     const r = this.fleet(...args);
-    if (r.code !== 0) throw new Error(`fleet ${args.join(" ")}: ${r.code}\n${r.out}\n${r.err}`);
+    if (r.code !== 0) throw new Error(`fleet ${args.join(' ')}: ${r.code}\n${r.out}\n${r.err}`);
     return r.out;
   }
 
   apply(obj: object) {
-    const path = join(this.root, "apply.json");
+    const path = join(this.root, 'apply.json');
     writeFileSync(path, JSON.stringify(obj));
-    this.ok("apply", "-f", path);
+    this.ok('apply', '-f', path);
   }
 
   get(kind: string, name: string): any {
-    return JSON.parse(this.ok("get", kind, name));
+    return JSON.parse(this.ok('get', kind, name));
   }
 
   list(kind: string): any[] {
-    const v = JSON.parse(this.ok("list", kind, "--json"));
+    const v = JSON.parse(this.ok('list', kind, '--json'));
     return (Array.isArray(v) ? v : v.items).filter((o: any) => !o.metadata.deletionTimestamp);
   }
 
   /** One manager pass after every plugin object's wait has expired. */
   sweep() {
-    for (const kind of ["ReviewSource", "Review"]) {
-      const dir = join(this.root, "data/objects", kind);
+    for (const kind of ['ReviewSource', 'Review']) {
+      const dir = join(this.root, 'data/objects', kind);
       let files: string[] = [];
       try {
         files = readdirSync(dir);
@@ -92,12 +92,12 @@ class Env {
       }
       for (const f of files) {
         const path = join(dir, f);
-        const obj = JSON.parse(readFileSync(path, "utf8"));
+        const obj = JSON.parse(readFileSync(path, 'utf8'));
         if (obj.status) obj.status.notBefore = 0;
         writeFileSync(path, JSON.stringify(obj));
       }
     }
-    this.ok("reconcile");
+    this.ok('reconcile');
   }
 
   forgeFile(name: string, v: object) {
@@ -106,7 +106,7 @@ class Env {
 
   readForge(name: string): any {
     try {
-      return JSON.parse(readFileSync(join(this.forge, name), "utf8"));
+      return JSON.parse(readFileSync(join(this.forge, name), 'utf8'));
     } catch {
       return {};
     }
@@ -114,72 +114,72 @@ class Env {
 
   /** A change in Fleet's fake-forge format. */
   setChange(id: number, state: string, head: string) {
-    const s = this.readForge("state.json");
+    const s = this.readForge('state.json');
     s.changes ??= {};
     s.changes[`${PROJECT}/${id}`] = {
       state,
-      head: { id: head, checks: "none" },
-      reviewDecision: "none",
+      head: { id: head, checks: 'none' },
+      reviewDecision: 'none',
       mergeable: { value: null, reason: null },
       threads: { unresolved: 0 },
     };
-    this.forgeFile("state.json", s);
+    this.forgeFile('state.json', s);
   }
 
   request(id: number, users: string[]) {
-    const r = this.readForge("reviewers.json");
+    const r = this.readForge('reviewers.json');
     r.requested[`${PROJECT}/${id}`] = users;
-    this.forgeFile("reviewers.json", r);
+    this.forgeFile('reviewers.json', r);
   }
 
   reviewTasks(): any[] {
-    return this.list("task").filter((t) => t.metadata.labels?.[LABEL_SOURCE] === "app");
+    return this.list('task').filter((t) => t.metadata.labels?.[LABEL_SOURCE] === 'app');
   }
 }
 
 function setup(review: object = {}): Env {
   const env = new Env();
-  env.setChange(1, "open", HEAD1);
-  env.setChange(2, "open", HEAD1);
-  env.request(1, ["alice"]);
-  env.request(2, ["bob"]);
+  env.setChange(1, 'open', HEAD1);
+  env.setChange(2, 'open', HEAD1);
+  env.request(1, ['alice']);
+  env.request(2, ['bob']);
   env.apply({
-    apiVersion: "fleet/v1alpha1",
-    kind: "TaskConfig",
-    metadata: { name: "review" },
-    spec: { harness: "claude-code" },
+    apiVersion: 'fleet/v1alpha1',
+    kind: 'TaskConfig',
+    metadata: { name: 'review' },
+    spec: { harness: 'claude-code' },
   });
   env.apply({
-    apiVersion: "fleet/v1alpha1",
-    kind: "ReviewSource",
-    metadata: { name: "app" },
+    apiVersion: 'fleet/v1alpha1',
+    kind: 'ReviewSource',
+    metadata: { name: 'app' },
     spec: {
-      forge: { kind: "fake", host: "forge.test", tokenEnv: "REVIEWER_TOKEN_A" },
-      repositories: [{ project: PROJECT, url: "https://forge.test/example/project" }],
-      filters: { requestedReviewer: "alice" },
-      review: { taskConfig: "review", ...review },
+      forge: { kind: 'fake', host: 'forge.test', tokenEnv: 'REVIEWER_TOKEN_A' },
+      repositories: [{ project: PROJECT, url: 'https://forge.test/example/project' }],
+      filters: { requestedReviewer: 'alice' },
+      review: { taskConfig: 'review', ...review },
     },
   });
   // Source lists and creates the Review; the Review creates its Task; the
   // next pass reads the Task's uid and dispatches it.
-  env.ok("reconcile");
+  env.ok('reconcile');
   env.sweep();
   return env;
 }
 
-describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
-  it("starts one dispatched review Task for an assigned change and never duplicates it", () => {
+describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
+  it('starts one dispatched review Task for an assigned change and never duplicates it', () => {
     const env = setup();
     const tasks = env.reviewTasks();
     expect(tasks.map((t) => t.metadata.name)).toHaveLength(1);
     const task = tasks[0];
-    const [review] = env.list("review");
+    const [review] = env.list('review');
     expect(task.metadata.name).toBe(review.metadata.name);
-    expect(task.metadata.labels["fleet.dev/plugin"]).toBe("fleet-reviewer");
+    expect(task.metadata.labels['fleet.dev/plugin']).toBe('fleet-reviewer');
     expect(task.spec.dispatch).toBe(true);
-    expect(task.spec.brief).toContain("https://forge.test/example/project/pull/1");
-    const source = env.get("reviewsource", "app");
-    expect(source.status.changes[`${PROJECT}!2`].reason).toBe("requestedReviewer");
+    expect(task.spec.brief).toContain('https://forge.test/example/project/pull/1');
+    const source = env.get('reviewsource', 'app');
+    expect(source.status.changes[`${PROJECT}!2`].reason).toBe('requestedReviewer');
 
     env.sweep();
     env.sweep();
@@ -187,13 +187,13 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     expect(again).toHaveLength(1);
     expect(again[0].metadata.uid).toBe(task.metadata.uid);
     expect(again[0].metadata.generation).toBe(task.metadata.generation);
-    expect(env.list("review")).toHaveLength(1);
+    expect(env.list('review')).toHaveLength(1);
   });
 
-  it("amends the same Task once per push, and deletes it when the change merges", () => {
+  it('amends the same Task once per push, and deletes it when the change merges', () => {
     const env = setup();
     const [before] = env.reviewTasks();
-    env.setChange(1, "open", HEAD2);
+    env.setChange(1, 'open', HEAD2);
     env.sweep();
     env.sweep();
     const [task] = env.reviewTasks();
@@ -201,87 +201,87 @@ describe.skipIf(!FLEET)("fleet-reviewer against a real fleet", () => {
     expect(task.metadata.generation).toBe(before.metadata.generation + 1);
     expect(task.spec.amendments).toHaveLength(1);
     expect(task.spec.amendments[0].text).toContain(HEAD2);
-    expect(task.spec.amendments[0].from).toBe("plugin/fleet-reviewer");
+    expect(task.spec.amendments[0].from).toBe('plugin/fleet-reviewer');
 
-    env.setChange(1, "merged", HEAD2);
+    env.setChange(1, 'merged', HEAD2);
     env.sweep();
     env.sweep();
-    const [review] = env.list("review");
-    expect(review.status.phase).toBe("Settled");
-    expect(review.status.change.state).toBe("merged");
+    const [review] = env.list('review');
+    expect(review.status.phase).toBe('Settled');
+    expect(review.status.change.state).toBe('merged');
     expect(env.reviewTasks()).toHaveLength(0);
   });
 
-  it("stops the review once the user is no longer a requested reviewer", () => {
+  it('stops the review once the user is no longer a requested reviewer', () => {
     const env = setup();
-    env.request(1, ["bob"]);
+    env.request(1, ['bob']);
     env.sweep();
     env.sweep();
-    expect(env.list("review")[0].status.phase).toBe("Excluded");
+    expect(env.list('review')[0].status.phase).toBe('Excluded');
     expect(env.reviewTasks()).toHaveLength(0);
   });
 
-  it("holds everything while the forge throttles", () => {
+  it('holds everything while the forge throttles', () => {
     const env = setup();
-    const r = env.readForge("reviewers.json");
-    r.faults = ["Throttled"];
+    const r = env.readForge('reviewers.json');
+    r.faults = ['Throttled'];
     r.requested[`${PROJECT}/1`] = [];
-    env.forgeFile("reviewers.json", r);
+    env.forgeFile('reviewers.json', r);
     env.sweep();
-    const source = env.get("reviewsource", "app");
-    expect(source.status.phase).toBe("Throttled");
+    const source = env.get('reviewsource', 'app');
+    expect(source.status.phase).toBe('Throttled');
     expect(source.status.throttle.until).toBeGreaterThan(Date.now() + 60_000);
-    expect(source.status.changes[`${PROJECT}!1`].verdict).toBe("included");
+    expect(source.status.changes[`${PROJECT}!1`].verdict).toBe('included');
     expect(env.reviewTasks()).toHaveLength(1);
   });
 
-  it("records each result, and reopens the concluded Task for a later push", () => {
+  it('records each result, and reopens the concluded Task for a later push', () => {
     const env = setup({ approveAt: 4 });
     const [task] = env.reviewTasks();
     const name = task.metadata.name;
-    expect(task.spec.brief).toContain("confidence is 4 or more");
+    expect(task.spec.brief).toContain('confidence is 4 or more');
     const result = (generation: string, head: string, confidence: string) =>
       env.ok(
-        "result",
+        'result',
         name,
-        "--generation",
+        '--generation',
         generation,
-        "--outcome",
-        "shipped",
-        "--summary",
-        "ok",
-        "--output",
+        '--outcome',
+        'shipped',
+        '--summary',
+        'ok',
+        '--output',
         `head="${head}"`,
-        "--output",
+        '--output',
         `confidence=${confidence}`,
       );
-    const first = env.get("task", name).status.brief.generation;
-    result(String(first), HEAD1, "4");
-    env.ok("reconcile");
+    const first = env.get('task', name).status.brief.generation;
+    result(String(first), HEAD1, '4');
+    env.ok('reconcile');
     env.sweep();
-    let [review] = env.list("review");
-    expect(review.status.phase).toBe("Reviewed");
+    let [review] = env.list('review');
+    expect(review.status.phase).toBe('Reviewed');
     expect(review.status.reviews[0]).toMatchObject({
       head: HEAD1,
       confidence: 4,
       generation: first,
     });
 
-    env.setChange(1, "open", HEAD2);
+    env.setChange(1, 'open', HEAD2);
     env.sweep();
     env.sweep();
-    const reopened = env.get("task", name);
+    const reopened = env.get('task', name);
     expect(reopened.metadata.uid).toBe(task.metadata.uid);
-    expect(reopened.status.phase).not.toBe("Concluded");
-    result(String(reopened.status.brief.generation), HEAD2, "5");
-    env.ok("reconcile");
+    expect(reopened.status.phase).not.toBe('Concluded');
+    result(String(reopened.status.brief.generation), HEAD2, '5');
+    env.ok('reconcile');
     env.sweep();
-    [review] = env.list("review");
-    expect(review.status.phase).toBe("Reviewed");
+    [review] = env.list('review');
+    expect(review.status.phase).toBe('Reviewed');
     expect(review.status.reviews.map((r: any) => r.head)).toEqual([HEAD2, HEAD1]);
     expect(env.reviewTasks()).toHaveLength(1);
   });
 });
 
 // Keep the binary's version in the test log.
-if (FLEET) console.log(execFileSync(FLEET, ["version"], { encoding: "utf8" }).split("\n")[0]);
+if (FLEET) console.log(execFileSync(FLEET, ['version'], { encoding: 'utf8' }).split('\n')[0]);

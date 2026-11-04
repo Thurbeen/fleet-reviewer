@@ -1,0 +1,75 @@
+---
+# Release, as thurbox does: on each push to main, cocogitto reads the commits
+# since the last tag. A `feat` or `fix` cuts the next version: a tag, and a
+# GitHub release whose notes are cog's changelog for it. The plugin ships as
+# source, so there is nothing to build: the operator checks out the tag.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact version to release (e.g. 1.0.0). Empty = auto from commits.'
+        required: false
+        default: ''
+        type: string
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # Pushes the tag and creates the release.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # Full history for cocogitto.
+      - uses: cocogitto/cocogitto-action@52d0023b4396897f1815648e553db2ab8d782f3a # v4.2.0
+        with:
+          install-only: true
+      - name: Decide the version
+        id: decide
+        env:
+          FORCED_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$FORCED_VERSION" ]; then
+            echo "version=v${FORCED_VERSION#v}" >> "$GITHUB_OUTPUT"
+            echo "args=--version ${FORCED_VERSION#v}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # cog prints the next tag when a bump is due, and prose otherwise:
+          # keep only a real semver.
+          RAW="$(cog bump --auto --dry-run 2>/dev/null || true)"
+          VERSION="$(printf '%s\n' "$RAW" | grep -oE '^v?[0-9]+\.[0-9]+\.[0-9]+[A-Za-z0-9.+-]*' | head -1 || true)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "args=--auto" >> "$GITHUB_OUTPUT"
+          [ -n "$VERSION" ] && echo "Release needed: $VERSION" || echo "No releasable commits"
+      - name: Tag
+        if: steps.decide.outputs.version != ''
+        env:
+          ARGS: ${{ steps.decide.outputs.args }}
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # shellcheck disable=SC2086 # ARGS is two words on purpose.
+          cog bump $ARGS
+          git push origin "refs/tags/$VERSION"
+      - name: Publish the GitHub release
+        if: steps.decide.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          cog changelog --at "$VERSION" > notes.md
+          gh release create "$VERSION" --verify-tag --title "$VERSION" --notes-file notes.md

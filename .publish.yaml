@@ -9,6 +9,8 @@ base: main
 review:
   rules:
     - AGENTS.md
+    # The contribution process: commits, the pull request title and this gate.
+    - CONTRIBUTING.md
 
 gate:
   - name: lint
