@@ -359,6 +359,34 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(review.status.reviews.map((r: any) => r.head)).toEqual([HEAD2, HEAD1]);
     expect(env.reviewTasks()).toHaveLength(1);
   });
+
+  it('asks a person when the Task records a stuck result for the current head', () => {
+    const env = setup();
+    const [task] = env.reviewTasks();
+    const name = task.metadata.name;
+    env.ok(
+      'result',
+      name,
+      '--generation',
+      String(env.get('task', name).status.brief.generation),
+      '--outcome',
+      'stuck',
+      '--summary',
+      'the publishing check was refused',
+      '--output',
+      `head="${HEAD1}"`,
+    );
+    env.ok('reconcile');
+    env.sweep();
+    const [review] = env.list('review');
+    expect(review.status.reviews[0]).toMatchObject({ head: HEAD1, outcome: 'stuck' });
+    expect(review.status.phase).not.toBe('Reviewed');
+    const cond = (type: string) => review.status.conditions.find((c: any) => c.type === type);
+    expect(cond('Reviewed')).toMatchObject({ status: 'False' });
+    expect(cond('NeedsAttention')).toMatchObject({ status: 'True', reason: 'ResultNotShipped' });
+    expect(cond('NeedsAttention').message).toContain(name);
+    expect(cond('NeedsAttention').message).toContain('stuck');
+  });
 });
 
 // Keep the binary's version in the test log.

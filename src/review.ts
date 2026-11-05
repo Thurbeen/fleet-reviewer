@@ -328,10 +328,17 @@ export function reconcile(req: J): J {
   if (!status.task.dispatched) {
     status.task = { ...status.task, dispatched: { by: 'person', at: now } };
   }
-  // 17, 18. Reviewed once the current head has a result; else the Task works on it.
+  // 17. Reviewed once the current head has a shipped result.
   if (!plan.amends && reviewedHead(head)) {
     return finish('Reviewed', listingWait, ['True', 'Dispatched']);
   }
+  // 18. The latest result for the current head did not ship: a person decides.
+  const last = (status.reviews as J[]).find((r) => sameHead(r.head, head));
+  if (!plan.amends && last) {
+    attention ??= ['ResultNotShipped', `${name}: ${last.outcome}`];
+    return finish('Reviewing', now + FOLLOW_MS, ['True', 'Dispatched']);
+  }
+  // 19. Otherwise the Task works on the current head.
   return finish('Reviewing', now + FOLLOW_MS, ['True', 'Dispatched']);
 }
 
