@@ -60,8 +60,7 @@ echo "denied:"
 echo "agent said:"
 jq -r '.result // empty' "$dir/out.json" 2>/dev/null | head -8 | sed 's/^/  /' || head -5 "$dir/out.json"
 
-if grep -q 'pr-review sync' "$dir/calls.log" 2>/dev/null &&
-  grep -v -- '--dry-run' "$dir/calls.log" | grep -q 'pr-review sync'; then
+if grep -v -- '--dry-run' "$dir/calls.log" 2>/dev/null | grep -q 'pr-review sync'; then
   echo "PASS: the review was posted without asking"
 else
   echo "FAIL: the review was not posted"

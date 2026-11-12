@@ -66,7 +66,7 @@ does not grant it.
 
 Fleet delivers the brief and each amendment as a message from another session. Claude Code
 in auto mode does not take such a message as the user's consent for a write to an outside
-system. Without a rule, auto mode refuses the post, and the Task ends `stuck`.
+system. Without a rule, auto mode can refuse the post, and the Task then ends `stuck`.
 
 For Claude Code and `template: thurview`, add this rule to `permissions.allow` in the user
 settings (`~/.claude/settings.json`) of the session's host:
