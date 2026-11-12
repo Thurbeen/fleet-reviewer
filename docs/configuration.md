@@ -58,6 +58,36 @@ Each `forge-*-session` EnvProvider gives the variables its harness and its forge
 for example `GH_TOKEN` or `GITLAB_TOKEN` and `GITLAB_HOST`. Their sources are files or
 commands on the manager, never values in a manifest.
 
+### Permission to post
+
+With `output: post`, the review session must be allowed to post without a person. The
+operator grants this permission in the harness settings on the session's host. The brief
+does not grant it.
+
+Fleet delivers the brief and each amendment as a message from another session. Claude Code
+in auto mode does not take such a message as the user's consent for a write to an outside
+system. Without a rule, auto mode refuses the post, and the Task ends `stuck`.
+
+For Claude Code and `template: thurview`, add this rule to `permissions.allow` in the user
+settings (`~/.claude/settings.json`) of the session's host:
+
+```json
+{"permissions": {"allow": ["Bash(thurview pr-review sync *)"]}}
+```
+
+The rule covers what `sync` writes: the summary comment, the finding threads, their replies
+and resolutions, and the `thurview/review` commit status. `sync` never approves, merges or
+pushes. An approval (`approveAt`) and the generic template's posts stay outside the rule.
+
+`scripts/check-post-permission.sh` checks a rule end to end. It sends a brief in a peer's
+voice to an auto-mode session, with a stub `thurview` that records its calls. Nothing
+reaches a forge. It needs `claude`, logged in, and `jq`:
+
+```sh
+scripts/check-post-permission.sh '{}'   # fails: auto mode refuses the post
+scripts/check-post-permission.sh '{"permissions":{"allow":["Bash(thurview pr-review sync *)"]}}'
+```
+
 ## Credentials
 
 The observer half needs one read token per forge account. The operator puts every such
