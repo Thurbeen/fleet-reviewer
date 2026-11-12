@@ -313,6 +313,18 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(env.reviewTasks()).toHaveLength(1);
   });
 
+  // Fleet sends a plugin's amendment as a peer's message, and a peer cannot
+  // consent to a forge write. Only the brief can ask for each later pass's post.
+  it("asks in its brief for each later push's pass to be posted", () => {
+    const env = setup({ output: 'post', template: 'thurview', page: 'none' });
+    const [task] = env.reviewTasks();
+    const step6 = task.spec.brief.split('\n').find((l: string) => l.startsWith('6. '));
+    expect(step6).toContain('When the head moves');
+    expect(step6).toContain(
+      'thurview pr-review sync --change https://forge.test/example/project/pull/1 --file pass.json',
+    );
+  });
+
   it('records each result, and reopens the concluded Task for a later push', () => {
     const env = setup({ approveAt: 4 });
     const [task] = env.reviewTasks();
