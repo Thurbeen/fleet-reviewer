@@ -71,7 +71,8 @@ review of `reviewer-login`, posts, and approves at a confidence of 4 or more:
 }
 ```
 
-[Configuration](docs/configuration.md) explains each field and the credentials.
+[Configuration](docs/configuration.md) explains each field, the credentials, and the
+[permission to post](docs/configuration.md#permission-to-post) a review session needs.
 
 ## Contributing
 
