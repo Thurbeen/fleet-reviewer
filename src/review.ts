@@ -182,7 +182,9 @@ export function reconcile(req: J): J {
   // 3, 4, 5. The source is gone or no longer covers the project; or retiring.
   if (source.value == null || deleting(source.value)) return retire('SourceGone');
   const spec = sourceSpec(source.value.spec);
-  if (!spec.repositories.some((r: J) => r.project === me.spec.project)) return retire('OutOfScope');
+  const repo = spec.repositories.find((r) => r.project === me.spec.project);
+  if (!repo) return retire('OutOfScope');
+  if (repo.noLocalClone) return retire('NoLocalClone');
   if (st.phase === 'Retiring') {
     return retire(String(oldConds.find((c) => c.type === 'Retiring')?.reason ?? 'Retiring'));
   }

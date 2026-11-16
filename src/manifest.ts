@@ -76,6 +76,7 @@ export const sourceSpecSchema = {
         maxActive: { type: 'integer', minimum: 1, maximum: 20 },
       },
     },
+    requireLocalClone: { type: 'boolean' },
     suspend: { type: 'boolean' },
     pollMs: { type: 'integer', minimum: 60000 },
     retention: {
