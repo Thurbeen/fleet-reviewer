@@ -160,7 +160,7 @@ class Env {
   }
 }
 
-function setup(review: object = {}): Env {
+function setup(review: object = {}, source: object = {}): Env {
   const env = new Env();
   env.setChange(1, 'open', HEAD1);
   env.setChange(2, 'open', HEAD1);
@@ -181,6 +181,7 @@ function setup(review: object = {}): Env {
       repositories: [{ project: PROJECT, url: 'https://forge.test/example/project' }],
       filters: { requestedReviewer: 'alice' },
       review: { taskConfig: 'review', ...review },
+      ...source,
     },
   });
   // Source lists and creates the Review; the Review creates its Task; the
@@ -214,6 +215,52 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(again[0].metadata.uid).toBe(task.metadata.uid);
     expect(again[0].metadata.generation).toBe(task.metadata.generation);
     expect(env.list('review')).toHaveLength(1);
+  });
+
+  it('skips a repository without a local clone when the source requires one', () => {
+    const env = setup({}, { requireLocalClone: true, repositories: [{ project: PROJECT }] });
+    expect(env.reviewTasks()).toHaveLength(0);
+    const source = env.get('reviewsource', 'app');
+    expect(source.status.changes).toEqual({});
+    expect(source.status.repositories[PROJECT]).toMatchObject({ skipped: 'NoLocalClone' });
+    expect(source.status.conditions.find((c: any) => c.type === 'Skipped')).toMatchObject({
+      status: 'True',
+      reason: 'NoLocalClone',
+      message: expect.stringContaining(PROJECT),
+    });
+  });
+
+  it('gives the review Task the local clone when the source requires one', () => {
+    const url = 'file:///srv/checkouts/project';
+    const env = setup({}, { requireLocalClone: true, repositories: [{ project: PROJECT, url }] });
+    const [task] = env.reviewTasks();
+    expect(task.spec.workspace).toEqual([`git+${url}#main`]);
+    const skipped = env
+      .get('reviewsource', 'app')
+      .status.conditions.find((c: any) => c.type === 'Skipped');
+    expect(skipped).toMatchObject({ status: 'False' });
+  });
+
+  it('retires the review of a repository that loses its local clone', () => {
+    const env = setup(
+      {},
+      {
+        requireLocalClone: true,
+        repositories: [{ project: PROJECT, url: 'file:///srv/checkouts/project' }],
+      },
+    );
+    expect(env.reviewTasks()).toHaveLength(1);
+    const source = env.get('reviewsource', 'app');
+    env.apply({
+      apiVersion: source.apiVersion,
+      kind: source.kind,
+      metadata: { name: 'app' },
+      spec: { ...source.spec, repositories: [{ project: PROJECT }] },
+    });
+    env.restSessions();
+    env.sweep();
+    env.sweep();
+    expect(env.reviewTasks()).toHaveLength(0);
   });
 
   it('runs up to five review Tasks at once when the source sets no maxActive', () => {

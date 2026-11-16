@@ -61,7 +61,7 @@ Then the rules are checked in order. The first rule that matches decides the pas
 | 1 | The `Review` is deleting. | `Retiring` | Delete the Task. Remove the finalizer once the `task` probe answers `known: null`. |
 | 2 | `source` is Unknown, or `task` is Unknown. | unchanged | Nothing. `notBefore = now + 300000`. |
 | 3 | `source` is `known: null`, or the source is deleting. | `Retiring` | Delete the Task, running or not. |
-| 4 | The project is no longer in the source's `spec.repositories`. | `Retiring` | Delete the Task, running or not. A person narrowed the scope; this is the cancel. |
+| 4 | The project is no longer in the source's `spec.repositories`, or `requireLocalClone` skips it. | `Retiring` | Delete the Task, running or not. A person narrowed the scope; this is the cancel. |
 | 5 | `Retiring`, and the `task` probe answers `known: null`. | gone | `delete: true`. |
 | 6 | `Settled`, and `settledAt + retention.reviewMs` is past. | `Retiring` | Nothing more to delete. |
 | 7 | `change` answers `merged` or `closed`, or the phase is `Settled`. | `Settled` | Delete the Task, running or not. The review ends with the change. |
@@ -158,6 +158,7 @@ source's status.
 | `ReviewSource` | `Listed` | `True/Complete` when every repository answered Known on its last listing. |
 | `ReviewSource` | `Throttled` | `True` while `throttle.until` is in the future. |
 | `ReviewSource` | `Overlap` | `True` when another source owns one of this source's changes. |
+| `ReviewSource` | `Skipped` | `True/NoLocalClone` when `requireLocalClone` skips a repository. The message names each skipped project. |
 | `ReviewSource` | `NeedsAttention` | `InvalidSpec`, `TooMany`, `Unauthorized`, or a refused plan. |
 
 Each condition keeps its `lastTransitionTime` until its status changes, so a quiet pass

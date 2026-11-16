@@ -152,6 +152,9 @@ makes a git worktree of `url` from the target branch. The place must be able to 
 `url`. When it has no credentials for the forge over HTTPS, set `url` to a local clone,
 for example `file:///srv/checkouts/app`. The brief's step 0 fetches the change's own head.
 
+Set `requireLocalClone: true` to forbid the HTTPS default. The source then skips each
+repository without a `file://` `url`. The `Skipped` condition names each skipped project.
+
 ## Dispatching by hand
 
 Under `dispatch.by: person`, a person dispatches a queued review Task. Fleet has no verb

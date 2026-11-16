@@ -52,6 +52,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `review.guidance` | none | Text the brief adds under "Repository guidance". At most 4000 characters. |
 | `dispatch.by` | `policy` | `policy`: the plugin dispatches each Task under `maxActive`. `person`: a person dispatches each Task. |
 | `dispatch.maxActive` | `5` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
+| `requireLocalClone` | `false` | `true` skips each repository whose `url` is not a `file://` local clone. A skipped repository is not listed, and no review Task clones it over HTTPS. |
 | `suspend` | `false` | `true` stops listing, creating and dispatching. Running Tasks continue. |
 | `pollMs` | `300000` | How often the source lists its repositories. At least 60000. |
 | `retention.reviewMs` | `604800000` | How long a settled `Review` stays before it retires. |
@@ -123,13 +124,13 @@ move the "updated" time, and an old change would look fresh after each review.
 | --- | --- |
 | `phase` | `Listing`, `Suspended` or `Throttled`. |
 | `account` | The login `forge.tokenEnv` authenticates as, read at most once a day. |
-| `repositories` | Per project: when it was last listed completely, and the last Unknown answer, if newer. |
+| `repositories` | Per project: when it was last listed completely, and the last Unknown answer, if newer. `{skipped: "NoLocalClone"}` for a project that `requireLocalClone` skips. |
 | `changes` | One entry per open change last listed, keyed `<project>!<number>`. A project whose last answer was Unknown keeps its previous entries. At most 200 entries. |
 | `changes[].review` | The `Review` name, or `null` for an excluded change that never had one. |
 | `changes[].reviewState` | Where that `Review` stands: `present`; `creating`, planned this pass; `deleting`, still in the store while it releases its Task; `waiting`, for the next listing or a free create. Absent for an excluded change without a `Review`. |
 | `budget` | Calls made in the current minute, `minute` being `floor(now / 60000)`. |
 | `throttle` | `{until, streak, why}` after a rate-limit answer; `null` otherwise. |
-| `conditions` | `Listed`, `Throttled`, `Overlap` and `NeedsAttention`. |
+| `conditions` | `Listed`, `Throttled`, `Overlap`, `Skipped` and `NeedsAttention`. |
 
 `Overlap` is `True` when a change of this source already has a `Review` that another source
 created. Such a change is reviewed once, under the other source's settings.
@@ -275,6 +276,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
         "maxActive": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5}
       }
     },
+    "requireLocalClone": {"type": "boolean", "default": false},
     "suspend": {"type": "boolean", "default": false},
     "pollMs": {"type": "integer", "minimum": 60000, "default": 300000},
     "retention": {

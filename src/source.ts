@@ -85,11 +85,13 @@ export function probes(req: J): J[] {
     out.push({ id: 'whoami', type: 'plugin', request: { op: 'whoami', forge } });
     remaining -= 1;
   }
-  const repos = [...spec.repositories].sort(
-    (a, b) =>
-      Number(st.repositories?.[a.project]?.listedAt ?? 0) -
-      Number(st.repositories?.[b.project]?.listedAt ?? 0),
-  );
+  const repos = spec.repositories
+    .filter((r) => !r.noLocalClone)
+    .sort(
+      (a, b) =>
+        Number(st.repositories?.[a.project]?.listedAt ?? 0) -
+        Number(st.repositories?.[b.project]?.listedAt ?? 0),
+    );
   for (const r of repos as J[]) {
     const id = `list/${r.project}`;
     if (id in obs || remaining < 1) continue;
@@ -258,14 +260,17 @@ export function reconcile(req: J): J {
   const account = who.ok ? { login: who.value.login, checkedAt: now } : (old.account ?? null);
 
   // Entries: replace what each Known listing answered; keep the rest.
-  const projects = new Set(spec.repositories.map((r) => r.project));
+  const listable = spec.repositories.filter((r) => !r.noLocalClone);
+  const skipped = spec.repositories.filter((r) => r.noLocalClone).map((r) => r.project);
+  const projects = new Set(listable.map((r) => r.project));
   const repositories: J = {};
   const changes: J = {};
   for (const [key, e] of Object.entries(old.changes ?? {})) {
     if (projects.has((e as J).project)) changes[key] = e;
   }
   let complete = true;
-  for (const r of spec.repositories as J[]) {
+  for (const project of skipped) repositories[project] = { skipped: 'NoLocalClone' };
+  for (const r of listable) {
     const prev = old.repositories?.[r.project] ?? {};
     const ans = obs[`list/${r.project}`];
     const listed = known(ans);
@@ -373,6 +378,14 @@ export function reconcile(req: J): J {
       overlap.length ? 'True' : 'False',
       overlap.length ? 'OtherSource' : 'None',
       overlap.join(', '),
+      now,
+    ),
+    condition(
+      oldConds,
+      'Skipped',
+      skipped.length ? 'True' : 'False',
+      skipped.length ? 'NoLocalClone' : 'None',
+      skipped.length ? `no local clone url: ${skipped.join(', ')}` : '',
       now,
     ),
     tooMany ? attention('TooMany', `${keys.length} changes, more than ${MAX_ENTRIES}`) : quiet(),

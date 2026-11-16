@@ -61,11 +61,15 @@ export function sourceSpec(spec: J) {
       tokenEnv: String(forge.tokenEnv ?? ''),
       maxCallsPerMinute: forge.maxCallsPerMinute ?? 30,
     },
-    repositories: ((spec?.repositories ?? []) as J[]).map((r: J) => ({
-      project: String(r.project),
-      url: r.url ?? `https://${forge.host}/${r.project}`,
-      targetBranches: r.targetBranches as string[] | undefined,
-    })),
+    repositories: ((spec?.repositories ?? []) as J[]).map((r: J) => {
+      const url: string = r.url ?? `https://${forge.host}/${r.project}`;
+      return {
+        project: String(r.project),
+        url,
+        targetBranches: r.targetBranches as string[] | undefined,
+        noLocalClone: !!spec?.requireLocalClone && !url.startsWith('file://'),
+      };
+    }),
     filters: {
       requestedReviewer: filters.requestedReviewer as string | undefined,
       drafts: filters.drafts ?? false,
