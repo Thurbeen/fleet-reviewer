@@ -6,7 +6,8 @@ The controller half reads neither the config nor the environment: what it needs 
 
 ## Registration
 
-The plugin is `src/plugin.ts`. Node.js 22.18 or later runs it as is: no build, no package,
+The plugin needs Fleet 3, which thurbox ships from v3.0.0. Fleet 2 refuses its review
+Tasks. The plugin is `src/plugin.ts`. Node.js 22.18 or later runs it as is: no build, no package,
 no runtime dependency. The operator checks out a pinned commit or release tag on the
 manager, needs no new binary, and registers it under
 [`[plugins.<name>]`](https://github.com/Thurbeen/fleet/blob/main/docs/configuration/fleet-toml.md#plugins-section):
