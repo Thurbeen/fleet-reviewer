@@ -148,14 +148,16 @@ fleet --config fleet.toml get review rv-api-42-3e91c0
 A source scoped to one product names that product's repositories and no other.
 
 A review Task's workspace is `git+<url>#<target branch>`. The runtime of the Task's place
-makes a git worktree of `url` from the target branch. The place must be able to clone
-`url`. When it has no credentials for the forge over HTTPS, or to skip the clone, set
-`url` to a local clone, for example `file:///srv/checkouts/app`. The brief's step 0
-fetches the change's own head.
+makes a git worktree of `url` from the target branch. The place must be able to read
+`url`. When it has no credentials for the forge over HTTPS, or to skip a clone of the
+forge, set `url` to a local clone, for example `file:///srv/checkouts/app`. The brief's
+step 0 fetches the change's own head.
 
-A `file://` URL gives the workspace `git+<url>#origin/<target branch>`. The runtime
-fetches the clone's `origin` first. The reason: a local clone resolves a bare branch name
-to its own branch, which can be behind the forge.
+A `file://` URL gives the workspace `git+<url>#origin/<target branch>`, so the local
+clone needs a remote named `origin` for the forge. For a clone with a working tree, the
+runtime fetches its `origin` before it makes the worktree. The reason: a local clone
+resolves a bare branch name to its own branch, which can be behind the forge. A bare
+`file://` repository is not fetched from its own remote: keep it current yourself.
 
 ## Dispatching by hand
 
