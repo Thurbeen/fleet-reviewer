@@ -34,7 +34,7 @@ forge.
 | Field | From | Why |
 | --- | --- | --- |
 | `configRef` | `review.taskConfig` | Harness, host, model and the session's credentials differ per forge. A TaskConfig already holds them. |
-| `workspace` | `["git+<url>#<target branch>"]`, from the project's `url` | The runtime makes a worktree of the repository from the target branch. The brief's step 0 fetches the change's own head (`refs/pull/<n>/head` on GitHub, `refs/merge-requests/<iid>/head` on GitLab) and checks it out. |
+| `workspace` | `["git+<url>#<target branch>"]`, from the project's `url`; `#origin/<target branch>` for a `file://` `url` | The runtime makes a worktree of the repository from the target branch. The brief's step 0 fetches the change's own head (`refs/pull/<n>/head` on GitHub, `refs/merge-requests/<iid>/head` on GitLab) and checks it out. |
 | `dispatch` | `false` | Nothing runs until a person or the policy says so. See [Dispatch](#dispatch). |
 | `outputs` | fixed | The facts the `Review` records. Only `head` is required, so a `stuck` or `failed` result still validates. |
 

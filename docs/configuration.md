@@ -149,8 +149,13 @@ A source scoped to one product names that product's repositories and no other.
 
 A review Task's workspace is `git+<url>#<target branch>`. The runtime of the Task's place
 makes a git worktree of `url` from the target branch. The place must be able to clone
-`url`. When it has no credentials for the forge over HTTPS, set `url` to a local clone,
-for example `file:///srv/checkouts/app`. The brief's step 0 fetches the change's own head.
+`url`. When it has no credentials for the forge over HTTPS, or to skip the clone, set
+`url` to a local clone, for example `file:///srv/checkouts/app`. The brief's step 0
+fetches the change's own head.
+
+A `file://` URL gives the workspace `git+<url>#origin/<target branch>`. The runtime
+fetches the clone's `origin` first. The reason: a local clone resolves a bare branch name
+to its own branch, which can be behind the forge.
 
 ## Dispatching by hand
 
