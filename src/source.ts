@@ -105,7 +105,7 @@ export function probes(req: J): J[] {
   }
   // GitLab lists no commit dates: read each new head's date once.
   if (spec.forge.kind === 'gitlab') {
-    for (const r of spec.repositories) {
+    for (const r of spec.repositories as J[]) {
       const listed = known(obs[`list/${r.project}`]);
       if (!listed.ok) continue;
       for (const c of listed.value.changes ?? []) {

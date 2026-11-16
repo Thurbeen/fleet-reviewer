@@ -94,7 +94,6 @@ export function sourceSpec(spec: J) {
       by: (dispatch.by ?? 'policy') as 'policy' | 'person',
       maxActive: dispatch.maxActive ?? 5,
     },
-    requireLocalClone: spec?.requireLocalClone ?? false,
     suspend: spec?.suspend ?? false,
     pollMs: Math.max(spec?.pollMs ?? 300_000, MINUTE),
     retention: {
