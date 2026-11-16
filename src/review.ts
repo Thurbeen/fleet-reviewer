@@ -342,6 +342,12 @@ export function reconcile(req: J): J {
   return finish('Reviewing', now + FOLLOW_MS, ['True', 'Dispatched']);
 }
 
+/** A `file://` checkout reads its own branch before its upstream's, so its base is `origin/<base>`. */
+function workspaceUrl(url: string, base: string | undefined): string {
+  if (!base) return `git+${url}`;
+  return `git+${url}#${url.startsWith('file://') ? `origin/${base}` : base}`;
+}
+
 function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: string): J {
   const repo = spec.repositories.find((r: J) => r.project === me.spec.project);
   const post = spec.review.output === 'post';
@@ -352,7 +358,7 @@ function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: 
     metadata: { name, labels: { [LABEL_SOURCE]: me.spec.source, [LABEL_REVIEW]: name } },
     spec: {
       configRef: { name: spec.review.taskConfig },
-      workspace: [`git+${repo?.url}${entry.base ? `#${entry.base}` : ''}`],
+      workspace: [workspaceUrl(String(repo?.url), entry.base)],
       brief: brief(
         spec,
         {

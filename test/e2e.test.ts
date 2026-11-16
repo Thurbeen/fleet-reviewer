@@ -160,7 +160,7 @@ class Env {
   }
 }
 
-function setup(review: object = {}): Env {
+function setup(review: object = {}, url = 'https://forge.test/example/project'): Env {
   const env = new Env();
   env.setChange(1, 'open', HEAD1);
   env.setChange(2, 'open', HEAD1);
@@ -178,7 +178,7 @@ function setup(review: object = {}): Env {
     metadata: { name: 'app' },
     spec: {
       forge: { kind: 'fake', host: 'forge.test', tokenEnv: 'REVIEWER_TOKEN_A' },
-      repositories: [{ project: PROJECT, url: 'https://forge.test/example/project' }],
+      repositories: [{ project: PROJECT, url }],
       filters: { requestedReviewer: 'alice' },
       review: { taskConfig: 'review', ...review },
     },
@@ -214,6 +214,12 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(again[0].metadata.uid).toBe(task.metadata.uid);
     expect(again[0].metadata.generation).toBe(task.metadata.generation);
     expect(env.list('review')).toHaveLength(1);
+  });
+
+  it("starts a local checkout's review from the upstream target branch, not its own", () => {
+    const env = setup({}, 'file:///srv/checkouts/project');
+    const [task] = env.reviewTasks();
+    expect(task.spec.workspace).toEqual(['git+file:///srv/checkouts/project#origin/main']);
   });
 
   it('runs up to five review Tasks at once when the source sets no maxActive', () => {
