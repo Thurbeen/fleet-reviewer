@@ -41,7 +41,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `forge.tokenEnv` | required | The name of the variable that holds the token the plugin reads this forge with. The value never appears in a spec. See [Configuration](configuration.md#credentials). |
 | `forge.maxCallsPerMinute` | `30` | The call budget of this host. Sources on one host share the smallest value any of them declares. See [Rate limits](interface.md#rate-limits). |
 | `repositories[].project` | required | `OWNER/repo` on GitHub, `group/sub/project` on GitLab. At least one; at most 50. |
-| `repositories[].url` | `https://<host>/<project>` | The URL the review Task's workspace names. It must match a key of the manager's `runtime.repositories`. |
+| `repositories[].url` | `https://<host>/<project>` | The repository the review Task's workspace clones: an HTTPS URL, or `file://` and a local clone. |
 | `repositories[].targetBranches` | all | Only changes into these branches are included. |
 | `filters` | see [Filters](#filters) | Which open changes are reviewed. |
 | `review.taskConfig` | required | The [TaskConfig](https://github.com/Thurbeen/fleet/blob/main/docs/resources/task-config.md) the review Tasks reference: harness, host, model and the session's credentials. |

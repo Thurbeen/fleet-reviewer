@@ -201,8 +201,7 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(task.metadata.labels['fleet.dev/plugin']).toBe('fleet-reviewer');
     expect(task.spec.dispatch).toBe(true);
     expect(task.spec.brief).toContain('https://forge.test/example/project/pull/1');
-    // The worktree starts from the target branch, and the reviewer reads the change's own head.
-    expect(task.spec.workspace.repositories[0].ref).toBe('origin/main');
+    expect(task.spec.workspace).toEqual(['git+https://forge.test/example/project#main']);
     expect(task.spec.brief).toContain('git fetch origin refs/pull/1/head');
     expect(task.spec.brief).toContain(`git checkout --detach ${HEAD1}`);
     const source = env.get('reviewsource', 'app');

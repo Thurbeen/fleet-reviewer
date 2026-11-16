@@ -344,7 +344,6 @@ export function reconcile(req: J): J {
 
 function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: string): J {
   const repo = spec.repositories.find((r: J) => r.project === me.spec.project);
-  const repoName = String(me.spec.project).split('/').pop();
   const post = spec.review.output === 'post';
   const name = me.metadata.name;
   return {
@@ -353,17 +352,7 @@ function reviewTask(me: J, spec: ReturnType<typeof sourceSpec>, entry: J, head: 
     metadata: { name, labels: { [LABEL_SOURCE]: me.spec.source, [LABEL_REVIEW]: name } },
     spec: {
       configRef: { name: spec.review.taskConfig },
-      // The worktree starts from the branch the change merges into; the brief's step 0
-      // then fetches the change's own head, because the runtime does not fetch.
-      workspace: {
-        repositories: [
-          {
-            name: repoName,
-            url: repo?.url,
-            ...(entry.base ? { ref: `origin/${entry.base}` } : {}),
-          },
-        ],
-      },
+      workspace: [`git+${repo?.url}${entry.base ? `#${entry.base}` : ''}`],
       brief: brief(
         spec,
         {

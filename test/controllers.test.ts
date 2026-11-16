@@ -355,7 +355,7 @@ describe('the change head', () => {
       now: NOW,
       observations: { source: { known: listed() }, task: { known: null } },
     });
-    expect(gh.creates[0].spec.workspace.repositories[0].ref).toBe('origin/main');
+    expect(gh.creates[0].spec.workspace).toEqual(['git+https://github.com/OWNER/app#main']);
     expect(gh.creates[0].spec.brief).toContain('git fetch origin refs/pull/1/head');
     const lab = src(
       { forge: { kind: 'gitlab', host: 'gitlab.example.com', tokenEnv: 'T' } },

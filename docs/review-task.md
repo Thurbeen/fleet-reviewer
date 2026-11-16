@@ -17,8 +17,7 @@ forge.
   },
   "spec": {
     "configRef": {"name": "review-github"},
-    "workspace": {"repositories": [{"name": "app", "url": "https://github.com/OWNER/app",
-                                    "ref": "origin/main"}]},
+    "workspace": ["git+https://github.com/OWNER/app#main"],
     "brief": "…the rendered brief below…",
     "dispatch": false,
     "outputs": {
@@ -35,13 +34,9 @@ forge.
 | Field | From | Why |
 | --- | --- | --- |
 | `configRef` | `review.taskConfig` | Harness, host, model and the session's credentials differ per forge. A TaskConfig already holds them. |
-| `workspace.repositories` | The project's `url`, and `ref: origin/<target branch>` | The runtime makes a worktree of the repository from `ref`; with thurbox, `ref` is the worktree's base branch. The runtime does not fetch, so the brief's step 0 fetches the change's own head (`refs/pull/<n>/head` on GitHub, `refs/merge-requests/<iid>/head` on GitLab) and checks it out. No `ref` would start from the clone's local default branch, which may be days old. |
+| `workspace` | `["git+<url>#<target branch>"]`, from the project's `url` | The runtime makes a worktree of the repository from the target branch. The brief's step 0 fetches the change's own head (`refs/pull/<n>/head` on GitHub, `refs/merge-requests/<iid>/head` on GitLab) and checks it out. |
 | `dispatch` | `false` | Nothing runs until a person or the policy says so. See [Dispatch](#dispatch). |
 | `outputs` | fixed | The facts the `Review` records. Only `head` is required, so a `stuck` or `failed` result still validates. |
-
-A repository URL that `runtime.repositories` does not map keeps the Task Pending with
-`RepositoryUnmapped`. The `Review` reports it as `NeedsAttention` and waits; it does not
-delete the Task.
 
 ## The brief
 

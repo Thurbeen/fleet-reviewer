@@ -144,13 +144,12 @@ fleet --config fleet.toml list review --json
 fleet --config fleet.toml get review rv-api-42-3e91c0
 ```
 
-Each `url` must be a key of the manager's `runtime.repositories`, which maps it to a
-checkout. A source scoped to one product names that product's repositories and no other.
+A source scoped to one product names that product's repositories and no other.
 
-A review Task's worktree starts from `origin/<target branch>` in that checkout, as of its
-last fetch, and the runtime does not fetch. Fetch the checkout regularly, for example from a
-timer. The brief's step 0 fetches the change's own head, so the review itself reads current
-rules and code even when the checkout is behind; a stale checkout only slows that step.
+A review Task's workspace is `git+<url>#<target branch>`. The runtime of the Task's place
+makes a git worktree of `url` from the target branch. The place must be able to clone
+`url`. When it has no credentials for the forge over HTTPS, set `url` to a local clone,
+for example `file:///srv/checkouts/app`. The brief's step 0 fetches the change's own head.
 
 ## Dispatching by hand
 
