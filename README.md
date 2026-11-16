@@ -34,8 +34,9 @@ deletes it when the change merges or closes.
 
 ## Registration
 
-Node.js 22.18 or later runs `src/plugin.ts` as is. Check out a pinned commit or release tag
-on the manager:
+The plugin needs Fleet 3, which [thurbox](https://github.com/Thurbeen/thurbox) ships from
+v3.0.0. Node.js 22.18 or later runs `src/plugin.ts` as is. Check out a pinned commit or
+release tag on the manager:
 
 ```sh
 git clone https://github.com/Thurbeen/fleet-reviewer /opt/fleet-plugins/fleet-reviewer

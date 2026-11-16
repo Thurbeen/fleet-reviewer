@@ -6,7 +6,8 @@ The controller half reads neither the config nor the environment: what it needs 
 
 ## Registration
 
-The plugin is `src/plugin.ts`. Node.js 22.18 or later runs it as is: no build, no package,
+The plugin needs Fleet 3, which thurbox ships from v3.0.0. Fleet 2 refuses its review
+Tasks. The plugin is `src/plugin.ts`. Node.js 22.18 or later runs it as is: no build, no package,
 no runtime dependency. The operator checks out a pinned commit or release tag on the
 manager, needs no new binary, and registers it under
 [`[plugins.<name>]`](https://github.com/Thurbeen/fleet/blob/main/docs/configuration/fleet-toml.md#plugins-section):
@@ -144,13 +145,12 @@ fleet --config fleet.toml list review --json
 fleet --config fleet.toml get review rv-api-42-3e91c0
 ```
 
-Each `url` must be a key of the manager's `runtime.repositories`, which maps it to a
-checkout. A source scoped to one product names that product's repositories and no other.
+A source scoped to one product names that product's repositories and no other.
 
-A review Task's worktree starts from `origin/<target branch>` in that checkout, as of its
-last fetch, and the runtime does not fetch. Fetch the checkout regularly, for example from a
-timer. The brief's step 0 fetches the change's own head, so the review itself reads current
-rules and code even when the checkout is behind; a stale checkout only slows that step.
+A review Task's workspace is `git+<url>#<target branch>`. The runtime of the Task's place
+makes a git worktree of `url` from the target branch. The place must be able to clone
+`url`. When it has no credentials for the forge over HTTPS, set `url` to a local clone,
+for example `file:///srv/checkouts/app`. The brief's step 0 fetches the change's own head.
 
 ## Dispatching by hand
 

@@ -19,7 +19,7 @@ permissions:
 # and "PR Title"; add every new job to `all-checks.needs`.
 env:
   # The Fleet release the end-to-end tests run against.
-  FLEET_VERSION: v2.19.0
+  FLEET_VERSION: 3.0.0
 
 jobs:
   plugin:
@@ -43,11 +43,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/fleet" && cd "$RUNNER_TEMP/fleet"
-          asset="fleet-${FLEET_VERSION}-x86_64-unknown-linux-musl.tar.gz"
-          gh release download "$FLEET_VERSION" -R Thurbeen/fleet \
-            -p "$asset" -p "fleet-${FLEET_VERSION}-checksums.txt"
-          grep " $asset\$" "fleet-${FLEET_VERSION}-checksums.txt" | sha256sum -c -
-          tar xzf "$asset"
+          asset="thurbox-v${FLEET_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          sums="thurbox-${FLEET_VERSION}-sha256sums.txt"
+          gh release download "v$FLEET_VERSION" -R Thurbeen/thurbox -p "$asset" -p "$sums"
+          grep " $asset\$" "$sums" | sha256sum -c -
+          tar xzf "$asset" fleet
           echo "FLEET_BIN=$RUNNER_TEMP/fleet/fleet" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
