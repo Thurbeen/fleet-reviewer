@@ -21,6 +21,7 @@ export const sourceSpecSchema = {
         host: { type: 'string', pattern: '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?$' },
         apiUrl: { type: 'string', pattern: '^https://[^\\s]+$' },
         tokenEnv: { type: 'string', pattern: '^[A-Z_][A-Z0-9_]{0,127}$' },
+        login: str,
         maxCallsPerMinute: { type: 'integer', minimum: 1, maximum: 600 },
       },
     },

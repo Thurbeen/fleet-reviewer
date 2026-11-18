@@ -28,7 +28,7 @@ still lack.
 | --- | --- | --- | --- |
 | 1 | `sources` | `list ReviewSource` | Always. Gives the host's budget and throttle. |
 | 1 | `reviews` | `list Review {fleet-reviewer/source: <name>}` | Always. Gives the Reviews this source has. |
-| 2 | `whoami` | `plugin {op: "whoami", …}` | `account` is missing or older than one day, and the host is not throttled. |
+| 2 | `whoami` | `plugin {op: "whoami", …}` | `forge.login` is not given, `account` is missing or older than one day, and the host is not throttled. |
 | 2 | `list/<project>` | `plugin {op: "listChanges", …}` | Per due repository, within the budget. See [Rate limits](#rate-limits). |
 | 3 | `headAt/<project>!<number>` | `plugin {op: "readHeadDate", …}` | GitLab only, per change whose head is new, within the budget. |
 

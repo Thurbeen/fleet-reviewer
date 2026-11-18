@@ -13,6 +13,7 @@ import {
   hostKey,
   known,
   reviewName,
+  sameLogin,
   sourceSpec,
 } from './util.ts';
 
@@ -81,7 +82,7 @@ export function probes(req: J): J[] {
   const forge = forgeRequest(spec);
 
   const accountFresh = st.account?.login && now - Number(st.account.checkedAt ?? 0) < DAY;
-  if (!accountFresh && !('whoami' in obs) && remaining >= 1) {
+  if (!spec.forge.login && !accountFresh && !('whoami' in obs) && remaining >= 1) {
     out.push({ id: 'whoami', type: 'plugin', request: { op: 'whoami', forge } });
     remaining -= 1;
   }
@@ -135,6 +136,11 @@ function invalid(spec: SourceSpec): string | null {
   return null;
 }
 
+/** The account `whoami` read; a configured `forge.login` is never one. */
+function readAccount(old: J): J {
+  return old.account?.checkedAt ? old.account : null;
+}
+
 /** The first filter that excludes the entry, or null when every filter admits it. */
 export function verdict(
   spec: SourceSpec,
@@ -144,15 +150,15 @@ export function verdict(
   now: number,
 ): string | null {
   const f = spec.filters;
-  const author = String(e.author?.login ?? '');
   const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const author = String(e.author?.login ?? '');
   const repo = spec.repositories.find((r) => r.project === e.project);
   if (e.draft && !f.drafts) return 'drafts';
   if (e.author?.kind === 'bot' && !f.bots) return 'bots';
   if (e.author?.kind === 'deleted' && !f.deletedAuthors) return 'deletedAuthors';
   if (!f.ownChanges) {
     if (!login) return 'accountUnknown';
-    if (eq(author, login)) return 'ownChanges';
+    if (sameLogin(author, login)) return 'ownChanges';
   }
   if (!e.headAt) return 'headAtUnknown';
   if (now - Number(e.headAt) > f.staleAfterDays * DAY) return 'staleAfterDays';
@@ -184,7 +190,7 @@ export function reconcile(req: J): J {
   const base = {
     phase: 'Listing',
     observedGeneration: me.metadata.generation,
-    account: old.account ?? null,
+    account: spec.forge.login ? { login: spec.forge.login } : readAccount(old),
     repositories: old.repositories ?? {},
     changes: old.changes ?? {},
     budget: old.budget ?? null,
@@ -255,7 +261,11 @@ export function reconcile(req: J): J {
   }
 
   const who = known(obs.whoami);
-  const account = who.ok ? { login: who.value.login, checkedAt: now } : (old.account ?? null);
+  const account = spec.forge.login
+    ? { login: spec.forge.login }
+    : who.ok
+      ? { login: who.value.login, checkedAt: now }
+      : readAccount(old);
 
   // Entries: replace what each Known listing answered; keep the rest.
   const projects = new Set(spec.repositories.map((r) => r.project));
