@@ -13,6 +13,7 @@ import {
   hostKey,
   known,
   reviewName,
+  sameLogin,
   sourceSpec,
 } from './util.ts';
 
@@ -81,7 +82,7 @@ export function probes(req: J): J[] {
   const forge = forgeRequest(spec);
 
   const accountFresh = st.account?.login && now - Number(st.account.checkedAt ?? 0) < DAY;
-  if (!accountFresh && !('whoami' in obs) && remaining >= 1) {
+  if (!spec.forge.login && !accountFresh && !('whoami' in obs) && remaining >= 1) {
     out.push({ id: 'whoami', type: 'plugin', request: { op: 'whoami', forge } });
     remaining -= 1;
   }
@@ -145,29 +146,28 @@ export function verdict(
 ): string | null {
   const f = spec.filters;
   const author = String(e.author?.login ?? '');
-  const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const repo = spec.repositories.find((r) => r.project === e.project);
   if (e.draft && !f.drafts) return 'drafts';
   if (e.author?.kind === 'bot' && !f.bots) return 'bots';
   if (e.author?.kind === 'deleted' && !f.deletedAuthors) return 'deletedAuthors';
   if (!f.ownChanges) {
     if (!login) return 'accountUnknown';
-    if (eq(author, login)) return 'ownChanges';
+    if (sameLogin(author, login)) return 'ownChanges';
   }
   if (!e.headAt) return 'headAtUnknown';
   if (now - Number(e.headAt) > f.staleAfterDays * DAY) return 'staleAfterDays';
-  if (f.excludeAuthors.some((a) => eq(a, author))) return 'excludeAuthors';
-  if (f.onlyAuthors && !f.onlyAuthors.some((a) => eq(a, author))) return 'onlyAuthors';
+  if (f.excludeAuthors.some((a) => sameLogin(a, author))) return 'excludeAuthors';
+  if (f.onlyAuthors && !f.onlyAuthors.some((a) => sameLogin(a, author))) return 'onlyAuthors';
   const labels: string[] = e.labels ?? [];
   if (f.requireLabels.some((l) => !labels.includes(l))) return 'requireLabels';
   if (f.excludeLabels.some((l) => labels.includes(l))) return 'excludeLabels';
   if (repo?.targetBranches && !repo.targetBranches.includes(e.base)) return 'targetBranches';
   if (f.requestedReviewer) {
     const who = f.requestedReviewer;
-    const requested = (e.requested ?? []).some((r: string) => eq(r, who));
+    const requested = (e.requested ?? []).some((r: string) => sameLogin(r, who));
     // GitHub drops a reviewer from the request once they review: a change
     // already followed stays followed while the reviewer has reviewed it.
-    const reviewed = hasReview && (e.reviewedBy ?? []).some((r: string) => eq(r, who));
+    const reviewed = hasReview && (e.reviewedBy ?? []).some((r: string) => sameLogin(r, who));
     if (!requested && !reviewed) return 'requestedReviewer';
   }
   return null;
@@ -255,7 +255,11 @@ export function reconcile(req: J): J {
   }
 
   const who = known(obs.whoami);
-  const account = who.ok ? { login: who.value.login, checkedAt: now } : (old.account ?? null);
+  const account = spec.forge.login
+    ? { login: spec.forge.login }
+    : who.ok
+      ? { login: who.value.login, checkedAt: now }
+      : (old.account ?? null);
 
   // Entries: replace what each Known listing answered; keep the rest.
   const projects = new Set(spec.repositories.map((r) => r.project));

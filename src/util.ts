@@ -46,6 +46,12 @@ export function sameHead(a: unknown, b: unknown): boolean {
   return n >= 7 ? a.slice(0, n) === b.slice(0, n) : a === b;
 }
 
+/** GitHub's GraphQL names an App `slug`, its REST API and pages `slug[bot]`. */
+export function sameLogin(a: string, b: string): boolean {
+  const bare = (login: string) => login.toLowerCase().replace(/\[bot\]$/, '');
+  return bare(a) === bare(b);
+}
+
 /** The spec of a ReviewSource with its defaults applied. */
 export function sourceSpec(spec: J) {
   const forge = spec?.forge ?? {};
@@ -59,6 +65,7 @@ export function sourceSpec(spec: J) {
       host: String(forge.host ?? '').toLowerCase(),
       apiUrl: forge.apiUrl ?? defaultApiUrl(forge.kind, forge.host),
       tokenEnv: String(forge.tokenEnv ?? ''),
+      login: forge.login as string | undefined,
       maxCallsPerMinute: forge.maxCallsPerMinute ?? 30,
     },
     repositories: ((spec?.repositories ?? []) as J[]).map((r: J) => ({

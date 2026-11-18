@@ -232,7 +232,8 @@ async function gitlab(req: J, http: Http): Promise<J> {
 // `<project>/<id>`, each with `state` and `head.id`). It has no reviewers,
 // authors or dates; those live beside it in `reviewers.json`, under the
 // same key: `requested`, `titles`, `authors`, `labels`, `headAt`, and
-// `faults`, a list of `why` values that each fail one forge read.
+// `faults`, a list of `why` values that each fail one forge read. A `login`
+// of null refuses `whoami`, as GitHub refuses `/user` to an App's token.
 
 function fake(req: J): J {
   const dir = process.env.FLEET_REVIEWER_FAKE_DIR;
@@ -252,7 +253,10 @@ function fake(req: J): J {
     throw new Unknown(fault, fault === 'Throttled' ? 120_000 : undefined);
   }
   const state = read('state.json').changes ?? {};
-  if (req.op === 'whoami') return { login: extra.login ?? 'fleet-reviewer-bot' };
+  if (req.op === 'whoami') {
+    if (extra.login === null) throw new Unknown('HTTP 403');
+    return { login: extra.login ?? 'fleet-reviewer-bot' };
+  }
   if (req.op === 'readChange') {
     const c = state[`${req.project}/${req.number}`];
     if (!c) throw new Unknown('NotFound');

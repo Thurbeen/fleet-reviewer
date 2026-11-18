@@ -117,6 +117,39 @@ therefore be read with another account's token if its `tokenEnv` names it. The p
 one trusted program, so this is a rule of the operator's config, not a boundary. [Fleet
 core](fleet-core.md#3-observer-environment-per-request) proposes a narrower delivery.
 
+## A GitHub App as the reviewer
+
+A GitHub App can be the reviewer instead of a person's account. Its installation token
+differs from a personal token in two ways:
+
+- GitHub refuses the token the read of its own login, `GET /user`.
+- The token expires one hour after GitHub issues it.
+
+Give the App's login in `forge.login`, for example `review-app[bot]`. The plugin then reads
+no login. Without `forge.login`, the plugin includes no change while `ownChanges` is
+`false`.
+
+Give the plugin its token through an EnvProvider command source. The command prints a
+fresh installation token each time it runs. Fleet resolves the plugin's `envFrom` for each
+sweep, so the plugin never reads an expired token. A file source does not work: its token
+expires after one hour.
+
+Fleet resolves a Task's environment once, at launch, and never again. A review Task stays
+open until its change merges or closes, which can take longer than one hour. A token in
+the session's environment therefore expires. The session's `gh` must get a fresh token for
+each call, for example through a `gh` wrapper earlier on the session's `PATH`.
+[fleet-factory](https://github.com/Thurbeen/fleet-factory) ships such a wrapper and the
+command that makes the token.
+
+The App needs these repository permissions:
+
+| Permission | Access | Used by |
+| --- | --- | --- |
+| Metadata | Read | The plugin and the session. |
+| Pull requests | Read and write | The plugin lists changes. The session posts its review, its threads and an approval. |
+| Contents | Read | The session fetches the change's head. |
+| Commit statuses | Read and write | The session's `thurview/review` status, with `template: thurview`. |
+
 ## A ReviewSource
 
 ```json

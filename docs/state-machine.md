@@ -105,7 +105,7 @@ Each pass does this:
 2. Stop at `Suspended` when `spec.suspend` is `true`. Nothing is listed or created.
 3. Stop at `Throttled` while any source on the same host has `throttle.until` in the
    future. `notBefore` is that time.
-4. Read `whoami` when `account` is missing or older than one day.
+4. Read `whoami` when `forge.login` is not given and `account` is missing or older than one day.
 5. List each repository that is due and fits in the host's remaining budget, oldest
    `listedAt` first. See [Rate limits](interface.md#rate-limits).
 6. Replace the entries of each repository that answered Known. Keep the entries of each

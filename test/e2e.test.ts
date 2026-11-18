@@ -160,12 +160,13 @@ class Env {
   }
 }
 
-function setup(review: object = {}): Env {
+function setup(review: object = {}, forge: object = {}, fixture = (_: Env) => {}): Env {
   const env = new Env();
   env.setChange(1, 'open', HEAD1);
   env.setChange(2, 'open', HEAD1);
   env.request(1, ['alice']);
   env.request(2, ['bob']);
+  fixture(env);
   env.apply({
     apiVersion: 'fleet/v1alpha1',
     kind: 'TaskConfig',
@@ -177,7 +178,7 @@ function setup(review: object = {}): Env {
     kind: 'ReviewSource',
     metadata: { name: 'app' },
     spec: {
-      forge: { kind: 'fake', host: 'forge.test', tokenEnv: 'REVIEWER_TOKEN_A' },
+      forge: { kind: 'fake', host: 'forge.test', tokenEnv: 'REVIEWER_TOKEN_A', ...forge },
       repositories: [{ project: PROJECT, url: 'https://forge.test/example/project' }],
       filters: { requestedReviewer: 'alice' },
       review: { taskConfig: 'review', ...review },
@@ -309,6 +310,19 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     expect(source.status.phase).toBe('Throttled');
     expect(source.status.throttle.until).toBeGreaterThan(Date.now() + 60_000);
     expect(source.status.changes[`${PROJECT}!1`].verdict).toBe('included');
+    expect(env.reviewTasks()).toHaveLength(1);
+  });
+
+  it('reviews as a GitHub App, whose token cannot read its own login, under its configured login', () => {
+    const env = setup({}, { login: 'review-app[bot]' }, (e) => {
+      const r = e.readForge('reviewers.json');
+      r.login = null;
+      r.authors = { [`${PROJECT}/2`]: 'Review-App' };
+      e.forgeFile('reviewers.json', r);
+    });
+    const source = env.get('reviewsource', 'app');
+    expect(source.status.changes[`${PROJECT}!1`].verdict).toBe('included');
+    expect(source.status.changes[`${PROJECT}!2`].reason).toBe('ownChanges');
     expect(env.reviewTasks()).toHaveLength(1);
   });
 

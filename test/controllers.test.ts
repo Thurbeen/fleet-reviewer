@@ -126,6 +126,18 @@ describe('ReviewSource', () => {
     });
     expect(p).toEqual([]);
   });
+
+  it('asks no whoami under a configured login', () => {
+    const obj = src({
+      forge: { kind: 'github', host: 'github.com', tokenEnv: 'T', login: 'review-app[bot]' },
+    });
+    const p = source.probes({
+      object: obj,
+      now: NOW,
+      observations: { sources: { known: [obj] }, reviews: { known: [] } },
+    });
+    expect(p.map((x: any) => x.id)).toEqual([`list/${P}`]);
+  });
 });
 
 function rv(status: any = {}): any {
