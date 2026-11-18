@@ -122,17 +122,17 @@ core](fleet-core.md#3-observer-environment-per-request) proposes a narrower deli
 A GitHub App can be the reviewer instead of a person's account. Its installation token
 differs from a personal token in two ways:
 
-- GitHub refuses the token the read of its own login, `GET /user`.
+- GitHub does not let the token read its own login with `GET /user`.
 - The token expires one hour after GitHub issues it.
 
 Give the App's login in `forge.login`, for example `review-app[bot]`. The plugin then reads
-no login. Without `forge.login`, the plugin includes no change while `ownChanges` is
-`false`.
+no login. Without `forge.login`, the plugin does not know the login. While `ownChanges` is `false`,
+the plugin then includes no change.
 
 Give the plugin its token through an EnvProvider command source. The command prints a
 fresh installation token each time it runs. Fleet resolves the plugin's `envFrom` for each
-sweep, so the plugin never reads an expired token. A file source does not work: its token
-expires after one hour.
+sweep, so the plugin never reads an expired token. Do not use a file source. A token in a
+file expires after one hour.
 
 Fleet resolves a Task's environment once, at launch, and never again. A review Task stays
 open until its change merges or closes, which can take longer than one hour. A token in

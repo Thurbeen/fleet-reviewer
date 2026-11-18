@@ -127,6 +127,22 @@ describe('ReviewSource', () => {
     expect(p).toEqual([]);
   });
 
+  it('forgets a configured login once forge.login is gone and whoami is Unknown', () => {
+    const obj = src({}, { account: { login: 'review-app[bot]' } });
+    const out = source.reconcile({
+      object: obj,
+      now: NOW,
+      observations: {
+        sources: { known: [obj] },
+        reviews: { known: [] },
+        whoami: { unknown: { why: 'HTTP 403' } },
+        [`list/${P}`]: { known: { changes: [pr(1)], calls: 1 } },
+      },
+    });
+    expect(out.status.account).toBeNull();
+    expect(out.status.changes[`${P}!1`].reason).toBe('accountUnknown');
+  });
+
   it('asks no whoami under a configured login', () => {
     const obj = src({
       forge: { kind: 'github', host: 'github.com', tokenEnv: 'T', login: 'review-app[bot]' },

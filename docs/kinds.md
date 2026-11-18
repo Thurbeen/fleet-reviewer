@@ -39,7 +39,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `forge.host` | required | The forge's host name, as in a change URL. |
 | `forge.apiUrl` | derived | `https://api.github.com` for `github.com`, `https://<host>/api/v3` for another GitHub host, `https://<host>/api/v4` for GitLab. |
 | `forge.tokenEnv` | required | The name of the variable that holds the token the plugin reads this forge with. The value never appears in a spec. See [Configuration](configuration.md#credentials). |
-| `forge.login` | read with `whoami` | The login the token acts as. When it is given, the plugin does not read it. Give it for a GitHub App installation token: GitHub refuses that token the read of its own login. See [Configuration](configuration.md#a-github-app-as-the-reviewer). |
+| `forge.login` | read with `whoami` | The login the token acts as. When it is given, the plugin does not read it. Give it for a GitHub App installation token. GitHub does not let that token read its own login. See [Configuration](configuration.md#a-github-app-as-the-reviewer). |
 | `forge.maxCallsPerMinute` | `30` | The call budget of this host. Sources on one host share the smallest value any of them declares. See [Rate limits](interface.md#rate-limits). |
 | `repositories[].project` | required | `OWNER/repo` on GitHub, `group/sub/project` on GitLab. At least one; at most 50. |
 | `repositories[].url` | `https://<host>/<project>` | The repository the review Task's workspace clones: an HTTPS URL, or `file://` and a local clone. |
@@ -65,17 +65,13 @@ in the table; the store does not.
 A change is **included** when every rule below admits it. Otherwise it is **excluded**,
 and its status entry names the first rule that excluded it.
 
-Two logins are the same login when they are equal without regard to case and to a final
-`[bot]`. GitHub's GraphQL API names an App `slug`, and its REST API and pages name it
-`slug[bot]`.
-
 | Field | Default | Excludes |
 | --- | --- | --- |
 | `requestedReviewer` | none | When given, a change that does not request this login's review. A change this login already reviewed stays included while its `Review` exists. |
 | `drafts` | `false` | A draft change, unless `true`. |
 | `bots` | `false` | A change by a bot account, unless `true`. |
 | `deletedAuthors` | `false` | A change whose author account no longer exists, unless `true`. |
-| `ownChanges` | `false` | A change by the account `forge.tokenEnv` authenticates as, unless `true`. `forge.login` names that account when it is given. |
+| `ownChanges` | `false` | A change by the account `forge.tokenEnv` authenticates as, unless `true`. `forge.login` names that account when it is given. This rule ignores case and a final `[bot]` in both logins. GitHub's GraphQL API names an App `slug`, and its REST API names it `slug[bot]`. |
 | `staleAfterDays` | `14` | A change whose head commit is older than this many days. |
 | `excludeAuthors` | `[]` | A change by one of these logins. |
 | `onlyAuthors` | all | A change by any other login, when the list is given. |

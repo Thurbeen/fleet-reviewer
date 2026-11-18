@@ -136,6 +136,11 @@ function invalid(spec: SourceSpec): string | null {
   return null;
 }
 
+/** The account `whoami` read; a configured `forge.login` is never one. */
+function readAccount(old: J): J {
+  return old.account?.checkedAt ? old.account : null;
+}
+
 /** The first filter that excludes the entry, or null when every filter admits it. */
 export function verdict(
   spec: SourceSpec,
@@ -145,6 +150,7 @@ export function verdict(
   now: number,
 ): string | null {
   const f = spec.filters;
+  const eq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const author = String(e.author?.login ?? '');
   const repo = spec.repositories.find((r) => r.project === e.project);
   if (e.draft && !f.drafts) return 'drafts';
@@ -156,18 +162,18 @@ export function verdict(
   }
   if (!e.headAt) return 'headAtUnknown';
   if (now - Number(e.headAt) > f.staleAfterDays * DAY) return 'staleAfterDays';
-  if (f.excludeAuthors.some((a) => sameLogin(a, author))) return 'excludeAuthors';
-  if (f.onlyAuthors && !f.onlyAuthors.some((a) => sameLogin(a, author))) return 'onlyAuthors';
+  if (f.excludeAuthors.some((a) => eq(a, author))) return 'excludeAuthors';
+  if (f.onlyAuthors && !f.onlyAuthors.some((a) => eq(a, author))) return 'onlyAuthors';
   const labels: string[] = e.labels ?? [];
   if (f.requireLabels.some((l) => !labels.includes(l))) return 'requireLabels';
   if (f.excludeLabels.some((l) => labels.includes(l))) return 'excludeLabels';
   if (repo?.targetBranches && !repo.targetBranches.includes(e.base)) return 'targetBranches';
   if (f.requestedReviewer) {
     const who = f.requestedReviewer;
-    const requested = (e.requested ?? []).some((r: string) => sameLogin(r, who));
+    const requested = (e.requested ?? []).some((r: string) => eq(r, who));
     // GitHub drops a reviewer from the request once they review: a change
     // already followed stays followed while the reviewer has reviewed it.
-    const reviewed = hasReview && (e.reviewedBy ?? []).some((r: string) => sameLogin(r, who));
+    const reviewed = hasReview && (e.reviewedBy ?? []).some((r: string) => eq(r, who));
     if (!requested && !reviewed) return 'requestedReviewer';
   }
   return null;
@@ -184,7 +190,7 @@ export function reconcile(req: J): J {
   const base = {
     phase: 'Listing',
     observedGeneration: me.metadata.generation,
-    account: old.account ?? null,
+    account: spec.forge.login ? { login: spec.forge.login } : readAccount(old),
     repositories: old.repositories ?? {},
     changes: old.changes ?? {},
     budget: old.budget ?? null,
@@ -259,7 +265,7 @@ export function reconcile(req: J): J {
     ? { login: spec.forge.login }
     : who.ok
       ? { login: who.value.login, checkedAt: now }
-      : (old.account ?? null);
+      : readAccount(old);
 
   // Entries: replace what each Known listing answered; keep the rest.
   const projects = new Set(spec.repositories.map((r) => r.project));
