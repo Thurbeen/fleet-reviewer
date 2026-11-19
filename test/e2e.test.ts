@@ -338,6 +338,24 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     );
   });
 
+  it('passes the approve threshold to every thurview sync, since thurview approves only with it', () => {
+    const env = setup({ output: 'post', template: 'thurview', page: 'none', approveAt: 4 });
+    const [task] = env.reviewTasks();
+    const lines: string[] = task.spec.brief.split('\n');
+    const syncs = ['3. ', '6. '].map((step) => lines.find((l) => l.startsWith(step)));
+    for (const sync of syncs) {
+      expect(sync).toContain('thurview pr-review sync');
+      expect(sync).toContain('--approve-at 4');
+    }
+  });
+
+  it('never passes an approve threshold to thurview when the source sets none', () => {
+    const env = setup({ output: 'post', template: 'thurview', page: 'none' });
+    const [task] = env.reviewTasks();
+    expect(task.spec.brief).toContain('thurview pr-review sync');
+    expect(task.spec.brief).not.toContain('--approve-at');
+  });
+
   it('records each result, and reopens the concluded Task for a later push', () => {
     const env = setup({ approveAt: 4 });
     const [task] = env.reviewTasks();
