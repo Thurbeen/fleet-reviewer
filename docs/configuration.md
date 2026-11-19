@@ -77,8 +77,9 @@ settings (`~/.claude/settings.json`) of the session's host:
 ```
 
 The rule covers what `sync` writes: the summary comment, the finding threads, their replies
-and resolutions, and the `thurview/review` commit status. `sync` never approves, merges or
-pushes. An approval (`approveAt`) and the generic template's posts stay outside the rule.
+and resolutions, and the `thurview/review` commit status. With `approveAt`, the brief
+passes `--approve-at` to `sync`, and the rule also covers that approval. `sync` never
+merges or pushes. The generic template's posts and approval stay outside the rule.
 
 `scripts/check-post-permission.sh` checks a rule end to end. It sends a brief in a peer's
 voice to an auto-mode session, with a stub `thurview` that records its calls. Nothing
@@ -140,6 +141,11 @@ the session's environment therefore expires. The session's `gh` must get a fresh
 each call, for example through a `gh` wrapper earlier on the session's `PATH`.
 [fleet-factory](https://github.com/Thurbeen/fleet-factory) ships such a wrapper and the
 command that makes the token.
+
+With `template: thurview`, also set `THURVIEW_LOGIN` to the App's login in the review
+TaskConfig's `env`, for example `review-app[bot]`. thurview reads its login with
+`GET /user`, and GitHub refuses that read to an App token. thurview then uses
+`THURVIEW_LOGIN`. Without it, every `thurview pr-review` command fails.
 
 The App needs these repository permissions:
 
