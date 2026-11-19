@@ -142,10 +142,16 @@ each call, for example through a `gh` wrapper earlier on the session's `PATH`.
 [fleet-factory](https://github.com/Thurbeen/fleet-factory) ships such a wrapper and the
 command that makes the token.
 
-With `template: thurview`, also set `THURVIEW_LOGIN` to the App's login in the review
-TaskConfig's `env`, for example `review-app[bot]`. thurview reads its login with
-`GET /user`, and GitHub refuses that read to an App token. thurview 0.41.0 and later
-then take the login from `THURVIEW_LOGIN`.
+With `template: thurview`, thurview infers nothing from its caller. The review
+TaskConfig must give the session two inputs for the App:
+
+- The App's installation token, to `gh`. Either set `GH_TOKEN`, or use the `gh` wrapper
+  above. thurview calls `gh`, so the wrapper also keeps its token fresh.
+- `THURVIEW_LOGIN`, set to the App's login in `env`, for example `review-app[bot]`.
+
+thurview reads its login with `gh api user` on each call. GitHub refuses that read to an
+App token. thurview 0.41.0 and later then take the login from `THURVIEW_LOGIN`.
+`THURVIEW_HOME` is optional.
 
 The App needs these repository permissions:
 
