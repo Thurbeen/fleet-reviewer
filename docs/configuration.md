@@ -144,8 +144,8 @@ command that makes the token.
 
 With `template: thurview`, also set `THURVIEW_LOGIN` to the App's login in the review
 TaskConfig's `env`, for example `review-app[bot]`. thurview reads its login with
-`GET /user`, and GitHub refuses that read to an App token. thurview then uses
-`THURVIEW_LOGIN`. Without it, every `thurview pr-review` command fails.
+`GET /user`, and GitHub refuses that read to an App token. thurview 0.41.0 and later
+then take the login from `THURVIEW_LOGIN`.
 
 The App needs these repository permissions:
 
