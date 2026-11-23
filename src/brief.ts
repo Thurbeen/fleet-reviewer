@@ -78,7 +78,8 @@ function laterPass(spec: SourceSpec, url: string): string {
 }
 
 function approvalThreshold(spec: SourceSpec): number | undefined {
-  return spec.review.output === 'post' ? spec.review.approveAt : undefined;
+  const r = spec.review;
+  return r.output === 'post' && r.template === 'thurview' ? r.approveAt : undefined;
 }
 
 function thurviewSync(spec: SourceSpec, url: string): string {
@@ -89,12 +90,9 @@ function thurviewSync(spec: SourceSpec, url: string): string {
 function approveRule(spec: SourceSpec): string {
   const at = approvalThreshold(spec);
   if (!at) return '4. Never approve, merge, close or push to the change.';
-  const how =
-    spec.review.template === 'thurview'
-      ? ` Approve only through \`--approve-at ${at}\` on \`thurview pr-review sync\`, never with \`gh\` or \`glab\`.`
-      : '';
   return (
-    `4. Approve the change only when your confidence is ${at} or more, and only at the head you ` +
-    `reviewed, after checking it is still the change's head.${how} Never merge, close or push to the change.`
+    `4. Approve only through \`--approve-at ${at}\` on \`thurview pr-review sync\`. It approves the ` +
+    'head you reviewed only when its review passes at 5/5 with nothing open. Never approve with ' +
+    '`gh` or `glab`, and never merge, close or push to the change.'
   );
 }

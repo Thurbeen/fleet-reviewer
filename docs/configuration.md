@@ -78,8 +78,9 @@ settings (`~/.claude/settings.json`) of the session's host:
 
 The rule covers what `sync` writes: the summary comment, the finding threads, their replies
 and resolutions, and the `thurview/review` commit status. With `approveAt`, the brief
-passes `--approve-at` to `sync`, and the rule also covers that approval. `sync` never
-merges or pushes. The generic template's posts and approval stay outside the rule.
+passes `--approve-at 5` to `sync`, and the rule also covers that approval. `sync` never
+merges or pushes. The generic template's posts stay outside the rule. The generic
+template never approves.
 
 `scripts/check-post-permission.sh` checks a rule end to end. It sends a brief in a peer's
 voice to an auto-mode session, with a stub `thurview` that records its calls. Nothing

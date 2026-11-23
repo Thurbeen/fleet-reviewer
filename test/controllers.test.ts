@@ -415,13 +415,14 @@ describe('brief', () => {
     expect(text).toContain('Never approve');
     expect(text).toContain(JSON.stringify('Say "hi"'));
   });
-  it('names the approve threshold when set', () => {
+  it('never approves with the generic template, even with approveAt', () => {
     const text = brief(
-      sourceSpec(src({ review: { taskConfig: 'r', approveAt: 4 } }).spec),
+      sourceSpec(src({ review: { taskConfig: 'r', output: 'post', approveAt: 5 } }).spec),
       change,
       't',
     );
-    expect(text).toContain('confidence is 4 or more');
+    expect(text).toContain('4. Never approve');
+    expect(text).not.toContain('Approve');
   });
   it('renders the optional thurview template', () => {
     const text = brief(

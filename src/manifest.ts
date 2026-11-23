@@ -65,7 +65,7 @@ export const sourceSpecSchema = {
         template: { enum: ['generic', 'thurview'] },
         output: { enum: ['post', 'report'] },
         page: { enum: ['none', 'snapshot'] },
-        approveAt: { type: 'integer', minimum: 1, maximum: 5 },
+        approveAt: { type: 'integer', minimum: 5, maximum: 5 },
         guidance: { type: 'string', maxLength: 4000 },
       },
     },
