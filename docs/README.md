@@ -33,7 +33,7 @@ flowchart LR
   R -->|patches dispatch, by: policy, the default| T
   R -->|amends on each push| T
   P -.->|dispatch, when by: person| T
-  T -->|review, post, approve at the threshold| F
+  T -->|review, post, approve at 5/5 through thurview| F
   T -->|fleet result, one per generation| R
 ```
 
@@ -52,8 +52,8 @@ flowchart LR
 4. The policy dispatches the Task when fewer than `maxActive` review Tasks of the source
    run. This is the default. Under `dispatch.by: person`, a person dispatches it.
 5. The Task's agent session reviews the change by its brief. It posts one summary and one
-   thread per finding, or it only reports, as the source says. With `review.approveAt`, it
-   approves the head it reviewed when its confidence reaches that value. It records a
+   thread per finding, or it only reports, as the source says. With `review.approveAt` and
+   the thurview template, thurview approves the head it reviewed at 5/5. It records a
    result with the head it reviewed and the confidence.
 6. The `Review` reads the result and records it. A new push amends the same Task with the
    new head; the Task reviews the increment and records a new result for the amendment's
@@ -83,7 +83,7 @@ These rules generalise what manual review runs showed.
 | Posting or report-only is a setting, and posting is the default. | [`review.output`](kinds.md#reviewsource) |
 | A source can follow one user's requested reviews only. | [`filters.requestedReviewer`](kinds.md#filters) |
 | Review Tasks are dispatched by the policy by default. | [`dispatch.by`](kinds.md#reviewsource) |
-| Approval is optional, per source, and only of the head the Task reviewed. | [`review.approveAt`](kinds.md#reviewsource) |
+| Approval is optional, per source, only through thurview at 5/5, and only of the head the Task reviewed. | [`review.approveAt`](kinds.md#reviewsource) |
 | A review can run without publishing a page, and that is the default. | [`review.page`](kinds.md#reviewsource) |
 | At most `maxActive` review Tasks of a source run at once. | [Dispatch](review-task.md#dispatch) |
 | Forge calls stay under a per-host budget and back off on a rate limit. | [Rate limits](interface.md#rate-limits) |
@@ -100,7 +100,7 @@ Out of scope, deliberately:
 - Posting on the forge from the plugin. Every forge write is the review Task's. The
   plugin plans no effects.
 - Merging or closing a change. The plugin and the brief add no verb for these. Approving
-  is in scope only as the review Task's act, at `review.approveAt`.
+  is in scope only as the review Task's act, through thurview at 5/5.
 - Reviewing a change that is not in a source's repositories, however it is found.
 - Other forges. The observer half has one adapter per forge; adding one is a later change.
 
@@ -113,7 +113,7 @@ The operator's request changed the first draft of this design in these places:
 | Requested reviewer | Every open change of a repository is reviewed. | `filters.requestedReviewer` includes only the changes that request one user's review. On GitHub, a change that user already reviewed stays included while its `Review` exists, because GitHub drops a reviewer from the request after the review. | The request: review every change where the user is a requested reviewer. |
 | Dispatch | `dispatch.by` defaults to `person`. | `dispatch.by` defaults to `policy`. | The request: review Tasks start automatically. |
 | Output | `review.output` defaults to `report`. | `review.output` defaults to `post`. | The request: post a summary and inline threads. |
-| Approval | Out of scope. | `review.approveAt`, 1 to 5, optional. The brief tells the Task to approve the head it reviewed when its confidence reaches the value. The plugin still writes nothing on a forge. | The request: an optional approve threshold. |
+| Approval | Out of scope. | `review.approveAt`, only 5, optional. With the thurview template, the brief passes `--approve-at 5` to `thurview pr-review sync`, which approves the reviewed head at 5/5 with nothing open. The plugin still writes nothing on a forge. | The request: optional approval at 5/5. |
 | Brief | thurview's `pr-review` flow only. | `review.template`: `generic`, the default, or `thurview`. | The plugin must not depend on one review tool. |
 | Stop label | `excludeLabels` defaults to `thurview:stop`. | `review:stop`. | The same reason. |
 | Distribution | A bundled `dist/plugin.js`. | `src/plugin.ts`, which Node.js 22.18 or later runs as is. No build and no runtime dependency. | The operator installs no new binary and no package. |

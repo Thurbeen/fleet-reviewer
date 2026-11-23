@@ -338,11 +338,57 @@ describe.skipIf(!FLEET)('fleet-reviewer against a real fleet', () => {
     );
   });
 
+  it('approves only through thurview at 5/5, passing --approve-at 5 to every sync', () => {
+    const env = setup({ output: 'post', template: 'thurview', page: 'none', approveAt: 5 });
+    const [task] = env.reviewTasks();
+    const lines: string[] = task.spec.brief.split('\n');
+    const step = (n: string) => lines.find((l) => l.startsWith(`${n}. `)) ?? '';
+    for (const sync of [step('3'), step('6')]) {
+      expect(sync).toContain('thurview pr-review sync');
+      expect(sync).toContain('--approve-at 5');
+    }
+    expect(step('4')).toContain('5/5');
+    expect(step('4')).not.toMatch(/confidence is \d or more/);
+    expect(step('4')).toContain('Never approve with `gh` or `glab`');
+  });
+
+  it('never approves with the generic template, which could approve only by hand', () => {
+    const env = setup({ output: 'post', approveAt: 5 });
+    const [task] = env.reviewTasks();
+    const step4 = task.spec.brief.split('\n').find((l: string) => l.startsWith('4. '));
+    expect(step4).toBe('4. Never approve, merge, close or push to the change.');
+  });
+
+  it('refuses an approval bar below 5/5', () => {
+    const env = setup();
+    const path = join(env.root, 'low-bar.json');
+    writeFileSync(
+      path,
+      JSON.stringify({
+        apiVersion: 'fleet/v1alpha1',
+        kind: 'ReviewSource',
+        metadata: { name: 'low-bar' },
+        spec: {
+          forge: { kind: 'fake', host: 'forge.test', tokenEnv: 'REVIEWER_TOKEN_A' },
+          repositories: [{ project: PROJECT, url: 'https://forge.test/example/project' }],
+          review: { taskConfig: 'review', template: 'thurview', approveAt: 4 },
+        },
+      }),
+    );
+    expect(env.fleet('apply', '-f', path).code).not.toBe(0);
+  });
+
+  it('never passes an approve threshold to thurview when the source sets none', () => {
+    const env = setup({ output: 'post', template: 'thurview', page: 'none' });
+    const [task] = env.reviewTasks();
+    expect(task.spec.brief).toContain('thurview pr-review sync');
+    expect(task.spec.brief).not.toContain('--approve-at');
+  });
+
   it('records each result, and reopens the concluded Task for a later push', () => {
-    const env = setup({ approveAt: 4 });
+    const env = setup();
     const [task] = env.reviewTasks();
     const name = task.metadata.name;
-    expect(task.spec.brief).toContain('confidence is 4 or more');
     const result = (generation: string, head: string, confidence: string) =>
       env.ok(
         'result',

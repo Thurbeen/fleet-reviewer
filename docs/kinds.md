@@ -27,7 +27,8 @@ A person applies sources. The plugin creates every `Review`. A person may delete
     "repositories": [{"project": "OWNER/app"}, {"project": "OWNER/app-infra"}],
     "filters": {"requestedReviewer": "reviewer-login", "staleAfterDays": 14,
                 "excludeAuthors": ["release-robot"]},
-    "review": {"taskConfig": "review-github", "output": "post", "approveAt": 4},
+    "review": {"taskConfig": "review-github", "output": "post", "template": "thurview",
+               "approveAt": 5},
     "dispatch": {"by": "policy", "maxActive": 5}
   }
 }
@@ -49,7 +50,7 @@ A person applies sources. The plugin creates every `Review`. A person may delete
 | `review.template` | `generic` | The brief. `generic`: a review by the brief's own steps. `thurview`: the optional thurview `pr-review` flow. See [the brief](review-task.md#the-brief). |
 | `review.output` | `post` | `post`: the Task posts the summary and the finding threads. `report`: the Task posts nothing and returns the rendered summary in its result. |
 | `review.page` | `none` | With `template: thurview` only. `none`: no page is published. `snapshot`: the Task publishes thurview's public snapshot and links it. `snapshot` requires `output: post`. |
-| `review.approveAt` | none | 1 to 5. With `output: post`, the brief tells the Task to approve the head it reviewed when its confidence is at least this value. Without it, the Task never approves. |
+| `review.approveAt` | none | Only 5. With `output: post` and `template: thurview`, the brief passes `--approve-at 5` to every `thurview pr-review sync`. thurview approves the reviewed head only at 5/5 with nothing open. Without it, or with the generic template, the Task never approves. |
 | `review.guidance` | none | Text the brief adds under "Repository guidance". At most 4000 characters. |
 | `dispatch.by` | `policy` | `policy`: the plugin dispatches each Task under `maxActive`. `person`: a person dispatches each Task. |
 | `dispatch.maxActive` | `5` | Under `policy`, the most review Tasks of this source that run at once. 1 to 20. |
@@ -264,7 +265,7 @@ the `jsonschema` crate, whose default is draft 2020-12.
         "template": {"enum": ["generic", "thurview"], "default": "generic"},
         "output": {"enum": ["post", "report"], "default": "post"},
         "page": {"enum": ["none", "snapshot"], "default": "none"},
-        "approveAt": {"type": "integer", "minimum": 1, "maximum": 5},
+        "approveAt": {"type": "integer", "minimum": 5, "maximum": 5},
         "guidance": {"type": "string", "maxLength": 4000}
       }
     },

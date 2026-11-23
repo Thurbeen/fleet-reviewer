@@ -4,8 +4,8 @@ A [Fleet](https://github.com/Thurbeen/fleet) plugin that finds the open pull and
 requests of chosen repositories, or only those that request one user's review, and starts
 one review Task per change, kept until the change merges or closes. A new push amends it.
 Each review Task posts one summary and one
-thread per finding, records a confidence from 1 to 5, and can approve the head it reviewed
-above a threshold. It never merges. A generic brief is the default;
+thread per finding, and records a confidence from 1 to 5. With the thurview template, it can
+approve the head it reviewed at 5/5. It never merges. A generic brief is the default;
 [thurview](https://github.com/Thurbeen/thurview)'s `pr-review` flow is an optional template.
 
 **Status: implemented.** The design is in [docs/](docs/README.md)
@@ -15,8 +15,8 @@ Node.js already installed: no build, no package, no new binary.
 ## How it works
 
 A person applies a `ReviewSource`: one forge host, an explicit list of repositories,
-filters, the TaskConfig the reviews run with, post or report-only, an optional approve
-threshold, and who dispatches. The plugin lists each repository's open changes, creates one
+filters, the TaskConfig the reviews run with, post or report-only, optional approval at
+5/5, and who dispatches. The plugin lists each repository's open changes, creates one
 `Review` per included change, and one Task per change. The policy dispatches each Task, or
 a person does. The plugin follows the Task to its result, amends it on each push, and
 deletes it when the change merges or closes.
@@ -55,7 +55,7 @@ envFrom = [{ name = "fleet-reviewer-tokens" }]
 ```
 
 Then apply a source. This one reviews every open change of `OWNER/app` that requests the
-review of `reviewer-login`, posts, and approves at a confidence of 4 or more:
+review of `reviewer-login` with thurview, posts, and approves at 5/5:
 
 ```json
 {
@@ -66,7 +66,7 @@ review of `reviewer-login`, posts, and approves at a confidence of 4 or more:
     "forge": {"kind": "gitlab", "host": "gitlab.example.com", "tokenEnv": "REVIEWER_TOKEN_A"},
     "repositories": [{"project": "OWNER/app"}],
     "filters": {"requestedReviewer": "reviewer-login"},
-    "review": {"taskConfig": "review-gitlab", "approveAt": 4},
+    "review": {"taskConfig": "review-gitlab", "template": "thurview", "approveAt": 5},
     "dispatch": {"maxActive": 5}
   }
 }
