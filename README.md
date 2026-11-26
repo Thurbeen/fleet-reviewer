@@ -78,10 +78,10 @@ review of `reviewer-login` with thurview, posts, and approves at 5/5:
 ## Listing
 
 The [Fleet plugins](https://thurbox.thurbeen.eu/fleet-plugins.html) page lists this
-plugin. The page finds the repository by its `thurbox-fleet-plugins` topic. It reads
-[`fleet-plugin.toml`](fleet-plugin.toml) for the kinds, the required Fleet version and
-setup notes. Fleet does not read that file. A test checks that its `kinds` match the
-`manifest` call.
+plugin. The page finds the repository by its `thurbox-fleet-plugins` topic. The page
+reads [`fleet-plugin.toml`](fleet-plugin.toml) for the kinds, the required Fleet version
+and the setup notes. Fleet does not read `fleet-plugin.toml`. A test checks that its
+`kinds` match the kinds of the `manifest` call.
 
 ## Contributing
 
