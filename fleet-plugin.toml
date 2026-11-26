@@ -1,0 +1,6 @@
+name = "fleet-reviewer"
+requires_fleet = ">=3.0.0"
+kinds = ["ReviewSource", "Review"]
+
+[gallery]
+notes = "Needs Node.js 22.18 or later on the manager, a forge token passed through envFrom, and tasks = \"own\"."

@@ -75,6 +75,14 @@ review of `reviewer-login` with thurview, posts, and approves at 5/5:
 [Configuration](docs/configuration.md) explains each field, the credentials, and the
 [permission to post](docs/configuration.md#permission-to-post) a review session needs.
 
+## Listing
+
+The [Fleet plugins](https://thurbox.thurbeen.eu/fleet-plugins.html) page lists this
+plugin. The page finds the repository by its `thurbox-fleet-plugins` topic. The page
+reads [`fleet-plugin.toml`](fleet-plugin.toml) for the kinds, the required Fleet version
+and the setup notes. Fleet does not read `fleet-plugin.toml`. A test checks that its
+`kinds` match the kinds of the `manifest` call.
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md). `pnpm install`, then `pnpm check` runs the type-check, the
